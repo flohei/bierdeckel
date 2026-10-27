@@ -6,6 +6,8 @@ Kategorien: **Neu** · **Verbessert** · **Behoben** · **Intern**
 
 ## Unveröffentlicht
 
+## v0.1.3 – 27.10.2026
+
 ### Neu
 - Städte-Seite schlägt Orte aus eingelesenen Inseraten vor, die noch keiner Stadt zugeordnet sind – mit PLZ, Anzahl und Übernahme per Klick inkl. Mietspiegel (#1)
 
