@@ -39,7 +39,7 @@
   {{len .Rows}} von {{.TotalListings}} Inseraten.
   {{with .LastFetch}}Letzter Abruf {{since .Finished}}{{if .ErrText}} – <a href="/einstellungen">mit Fehler</a>{{end}}.{{end}}
   {{if .Fetching}}Abruf läuft …{{end}}
-  {{if .Unmatched}}{{.Unmatched}} Inserate ohne zugeordnete Stadt.{{end}}
+  {{if .Unmatched}}<a href="/staedte">{{.Unmatched}} Inserate ohne zugeordnete Stadt</a>.{{end}}
 </p>
 
 {{if .Rows}}

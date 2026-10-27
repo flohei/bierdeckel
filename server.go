@@ -602,7 +602,10 @@ func (a *App) renderCities(w http.ResponseWriter, r *http.Request, status int, d
 			counts[c.ID]++
 		}
 	}
-	a.render(w, r, status, "cities.html", map[string]any{"Title": "Städte", "Nav": "cities", "Cities": cities, "Counts": counts, "Draft": draft, "Error": errMsg})
+	a.render(w, r, status, "cities.html", map[string]any{
+		"Title": "Städte", "Nav": "cities", "Cities": cities, "Counts": counts, "Draft": draft, "Error": errMsg,
+		"Suggestions": suggestCities(listings, cities),
+	})
 }
 
 func (a *App) cityCreate(w http.ResponseWriter, r *http.Request) {

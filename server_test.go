@@ -188,3 +188,25 @@ func TestFormatting(t *testing.T) {
 }
 
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
+
+func TestCitySuggestionsFlow(t *testing.T) {
+	a, h := newTestApp(t)
+	if _, err := importFile(a.store, "testdata/immowelt-synthetisch.eml"); err != nil {
+		t.Fatal(err)
+	}
+	body := do(h, "GET", "/staedte", nil, nil).Body.String()
+	if !strings.Contains(body, "Aus Inseraten erkannt") || !strings.Contains(body, `value="Herrieden"`) || !strings.Contains(body, `value="Ansbach"`) {
+		t.Fatalf("Vorschläge fehlen:\n%s", body)
+	}
+	w := do(h, "POST", "/staedte", url.Values{"name": {"Herrieden"}, "postcodes": {"91567"}, "active": {"1"}, "rent_per_m2": {"8,1"}}, nil)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("übernehmen: %d", w.Code)
+	}
+	body = do(h, "GET", "/staedte", nil, nil).Body.String()
+	if strings.Contains(body, `type="hidden" name="name" value="Herrieden"`) {
+		t.Error("übernommene Stadt sollte kein Vorschlag mehr sein")
+	}
+	if !strings.Contains(body, "8,10 €/m²") {
+		t.Error("Mietspiegel nicht übernommen")
+	}
+}
