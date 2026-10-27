@@ -6,6 +6,8 @@ Kategorien: **Neu** · **Verbessert** · **Behoben** · **Intern**
 
 ## Unveröffentlicht
 
+## v0.1.4 – 27.10.2026
+
 ### Behoben
 - immowelt-Mails im aktuellen Layout: Titel, Ort und PLZ werden richtig erkannt (Ort über mehrere Zeilen, „(85055)“), Link führt zum Inserat (#2)
 - Anbieter (Makler, Banken, Bauträger) und Mail-Texte wie „Deine ersten Treffer zur Suche“ landen nicht mehr als Ort in den Städte-Vorschlägen (#2)
