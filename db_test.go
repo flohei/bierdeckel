@@ -78,3 +78,28 @@ func TestThresholdDefault(t *testing.T) {
 		t.Errorf("gespeichert: %v", s.Threshold())
 	}
 }
+
+func TestResetImported(t *testing.T) {
+	s := newTestStore(t)
+	s.UpsertListing(Listing{Source: "immowelt", ExternalID: "h-1"})
+	s.UpsertListing(Listing{Source: "manual", ExternalID: "m"})
+	s.UpsertListing(Listing{Source: "is24", ExternalID: "2"})
+	ls, _ := s.Listings()
+	for _, l := range ls {
+		if l.ExternalID == "2" {
+			l.Note = "anschauen"
+			s.UpdateListingManual(l)
+		}
+	}
+	s.SetMailState("INBOX", 3, 99)
+	n, err := s.ResetImported()
+	if err != nil || n != 1 {
+		t.Fatalf("%d gelöscht, %v", n, err)
+	}
+	if ls, _ := s.Listings(); len(ls) != 2 {
+		t.Errorf("%d übrig", len(ls))
+	}
+	if v, last, _ := s.MailState("INBOX"); v != 0 || last != 0 {
+		t.Errorf("IMAP-Stand nicht zurückgesetzt: %d %d", v, last)
+	}
+}

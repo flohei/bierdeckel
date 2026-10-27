@@ -115,8 +115,12 @@ var (
 	reRooms       = regexp.MustCompile(`(?i)(\d{1,2}(?:,\d)?|\d½)\s*(?:zi\b\.?|zimmer\b|zi\.|räume\b)`)
 	rePLZCity     = regexp.MustCompile(`\b(\d{5})\s+([A-ZÄÖÜ][^\x01\x02]*)`)
 	reFooter      = regexp.MustCompile(`(?i)impressum|abmelden|abbestellen|datenschutz|suchauftrag (?:bearbeiten|löschen|verwalten|ändern)|newsletter|handelsregister|geschäftsführ|amtsgericht`)
-	reBoilerplate = regexp.MustCompile(`(?i)suchauftrag|neue (?:angebote|immobilien|inserate|treffer|objekte)|angebote? für|ihre suche|hallo|guten tag|sehr geehrte`)
-	reButtonish   = regexp.MustCompile(`(?i)^(zum |zur |details|ansehen|mehr|exposé|expose|angebot ansehen|jetzt ansehen|\d+ bilder?|merken)`)
+	reBoilerplate = regexp.MustCompile(`(?i)suchauftrag|neues? (?:angebot|immobilien|inserat|treffer|objekt)|angebote? für|treffer zu|ihre suche|deine suche|deiner (?:gespeicherten )?suche|passend zu|für dich|weitere immobilien|im projekt|immobilie wert|preise ansehen|karte anzeigen|inserieren|hol dir die app|käufer gesucht|hallo|guten tag|sehr geehrte`)
+	reButtonish   = regexp.MustCompile(`(?i)^(zum |zur |details|ansehen|mehr|exposé|expose|angebot ansehen|jetzt |\d+ bilder?|merken|anzeigen)`)
+	// Anbieterzeilen: Maklerfirmen, Banken, Bauträger – weder Titel noch Ort.
+	reProvider = regexp.MustCompile(`(?i)\b(gmbh|mbh|ag|kg|ug|e\.\s?k\.|eg|immobilien|immobilienwelt|makler|maklerbüro|sparkasse|volksbank|raiffeisenbank|re/max|remax|engel & völkers|von poll|homeday|bauträger|wohnbau|gewerbebau|hausverwaltung|vertriebs?)\b`)
+	rePerM2    = regexp.MustCompile(`(?i)(€|eur)\s*(/|pro)\s*(m²|m2|qm)`)
+	rePLZParen = regexp.MustCompile(`\((\d{5})\)`)
 )
 
 // parseGermanInt liest „289.000“ oder „289 000“ als 289000.
@@ -346,8 +350,17 @@ func extractFields(block string) Listing {
 	if l.Price == 0 {
 		l.Price = maxPrice
 	}
+	// Titel ist die erste Textzeile, danach folgt die Ortsangabe – bei immowelt über
+	// mehrere Zeilen verteilt („Ingolstadt,“ / „Ingolstadt“ / „(85055)“).
+	var place []string
 	for _, line := range lines {
-		if reButtonish.MatchString(line) || reBoilerplate.MatchString(line) || len(euroAmounts(line)) > 0 || reArea.MatchString(line) || reRooms.MatchString(line) {
+		if reButtonish.MatchString(line) || reBoilerplate.MatchString(line) {
+			if len(place) > 0 {
+				break
+			}
+			continue
+		}
+		if len(euroAmounts(line)) > 0 || reArea.MatchString(line) || reRooms.MatchString(line) || rePerM2.MatchString(line) || reProvider.MatchString(line) {
 			continue
 		}
 		if line == l.Address || l.Title == "" && len([]rune(line)) < 8 {
@@ -357,38 +370,111 @@ func extractFields(block string) Listing {
 			l.Title = truncate(line, 200)
 			continue
 		}
-		// Ohne PLZ ist die Zeile nach dem Titel meist die Ortsangabe („Stadt (Stadtteil)“).
-		if l.Address == "" && len([]rune(line)) <= 80 {
-			l.Address = line
+		if l.Address != "" || len([]rune(line)) > 80 {
+			break
 		}
-		break
+		place = append(place, line)
+		if len(place) == 4 {
+			break
+		}
+	}
+	if l.Address == "" && len(place) > 0 {
+		l.Address = strings.TrimSpace(strings.ReplaceAll(strings.Join(place, " "), " ,", ","))
+		if m := rePLZParen.FindStringSubmatch(l.Address); m != nil {
+			l.Postcode = m[1]
+		} else if m := plzRe.FindString(l.Address); m != "" {
+			l.Postcode = m
+		}
 	}
 	return l
 }
 
-// parseWithoutIDs ist der Notfallweg für Mails, deren Links keine Exposé-URL enthalten:
-// Blöcke werden an Zeilen mit Kaufpreis getrennt, die ID ist ein Hash aus Titel und Fläche.
+// parseWithoutIDs ist der Weg für Mails, deren Links keine Exposé-URL enthalten (immowelt
+// verschlüsselt alle Links über click.by.immowelt.de). Ein Inserat beginnt mit seiner
+// Kaufpreis-Zeile und reicht bis zur nächsten; die ID ist ein Hash aus Titel und Fläche,
+// der Link die Weiterleitung am Titel.
 func parseWithoutIDs(text, source string) []ParsedListing {
-	var out []ParsedListing
 	lines := strings.Split(text, "\n")
-	start := 0
-	for i := range lines {
-		if amounts := euroAmounts(lines[i]); len(amounts) == 0 || amounts[0] < 10000 {
+	var starts []int
+	for i, line := range lines {
+		low := strings.ToLower(stripMarkers(line))
+		if strings.Contains(low, "miete") {
 			continue
 		}
-		// Block: einige Zeilen vor dem Preis bis wenige Zeilen danach.
-		from := max(start, i-4)
-		to := min(len(lines), i+4)
-		l := extractFields(strings.Join(lines[from:to], "\n"))
-		start = i + 1
+		for _, a := range euroAmounts(stripMarkers(line)) {
+			if a >= 10000 {
+				starts = append(starts, i)
+				break
+			}
+		}
+	}
+	var out []ParsedListing
+	seen := map[string]bool{}
+	for n, from := range starts {
+		to := len(lines)
+		if n+1 < len(starts) {
+			to = starts[n+1]
+		}
+		block := strings.Join(lines[from:to], "\n")
+		l := extractFields(block)
+		if l.Title == "" {
+			// Layout mit Titel vor dem Preis: ein paar Zeilen zurückschauen.
+			block = strings.Join(lines[max(0, from-4):to], "\n")
+			l = extractFields(block)
+		}
 		if l.Price == 0 || l.Area == 0 || l.Title == "" {
 			continue
 		}
 		h := sha256.Sum256([]byte(strings.ToLower(l.Title) + "|" + strconv.FormatFloat(l.Area, 'f', 1, 64)))
 		l.Source, l.ExternalID = source, "h-"+hex.EncodeToString(h[:8])
+		if seen[l.ExternalID] {
+			continue
+		}
+		seen[l.ExternalID] = true
+		l.URL = titleLink(block, l.Title)
 		out = append(out, ParsedListing{Listing: l, Hashed: true})
 	}
 	return out
+}
+
+// titleLink liefert den Link der Zeile mit dem Titel, sonst den ersten Link im Block.
+func titleLink(block, title string) string {
+	first := ""
+	for _, line := range strings.Split(block, "\n") {
+		s := strings.IndexByte(line, linkStart)
+		if s < 0 {
+			continue
+		}
+		e := strings.IndexByte(line[s:], linkEnd)
+		if e < 0 {
+			continue
+		}
+		href := line[s+1 : s+e]
+		if !strings.HasPrefix(href, "https://") && !strings.HasPrefix(href, "http://") {
+			continue
+		}
+		if strings.Contains(line, title) {
+			return href
+		}
+		if first == "" {
+			first = href
+		}
+	}
+	return first
+}
+
+func stripMarkers(line string) string {
+	for {
+		s := strings.IndexByte(line, linkStart)
+		if s < 0 {
+			return line
+		}
+		e := strings.IndexByte(line[s:], linkEnd)
+		if e < 0 {
+			return line[:s]
+		}
+		line = line[:s] + line[s+e+1:]
+	}
 }
 
 func truncate(s string, n int) string {
