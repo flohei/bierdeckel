@@ -68,6 +68,10 @@ CREATE TABLE fetch_log (
 	error        TEXT NOT NULL DEFAULT ''
 );
 `,
+	`
+ALTER TABLE listings ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0;
+CREATE INDEX listings_favorite ON listings(favorite) WHERE favorite = 1;
+`,
 }
 
 func openDB(path string) (*sql.DB, error) {
@@ -212,6 +216,7 @@ type Listing struct {
 	Rooms      float64
 	RentActual int64 // 0 = unbekannt
 	Hidden     bool
+	Favorite   bool
 	Note       string
 	FirstSeen  time.Time
 	LastSeen   time.Time
@@ -266,13 +271,13 @@ func (s *Store) UpsertListing(l Listing) (bool, error) {
 	return false, tx.Commit()
 }
 
-const listingCols = `id, source, external_id, url, title, address, postcode, price, first_price, area, rooms, COALESCE(rent_actual, 0), hidden, note, first_seen, last_seen`
+const listingCols = `id, source, external_id, url, title, address, postcode, price, first_price, area, rooms, COALESCE(rent_actual, 0), hidden, favorite, note, first_seen, last_seen`
 
 func scanListing(sc interface{ Scan(...any) error }) (Listing, error) {
 	var l Listing
 	var first, last int64
 	err := sc.Scan(&l.ID, &l.Source, &l.ExternalID, &l.URL, &l.Title, &l.Address, &l.Postcode, &l.Price, &l.FirstPrice,
-		&l.Area, &l.Rooms, &l.RentActual, &l.Hidden, &l.Note, &first, &last)
+		&l.Area, &l.Rooms, &l.RentActual, &l.Hidden, &l.Favorite, &l.Note, &first, &last)
 	l.FirstSeen, l.LastSeen = time.Unix(first, 0), time.Unix(last, 0)
 	return l, err
 }
@@ -298,6 +303,11 @@ func (s *Store) Listing(id int64) (Listing, error) {
 	return scanListing(s.db.QueryRow(`SELECT `+listingCols+` FROM listings WHERE id = ?`, id))
 }
 
+func (s *Store) SetFavorite(id int64, fav bool) error {
+	_, err := s.db.Exec(`UPDATE listings SET favorite = ? WHERE id = ?`, fav, id)
+	return err
+}
+
 func (s *Store) SetHidden(id int64, hidden bool) error {
 	_, err := s.db.Exec(`UPDATE listings SET hidden = ? WHERE id = ?`, hidden, id)
 	return err
@@ -321,14 +331,14 @@ func (s *Store) DeleteListing(id int64) error {
 
 // ResetImported löscht alle aus Mails gelesenen Inserate ohne Notiz und setzt den
 // IMAP-Stand zurück, damit der nächste Abruf alles mit dem aktuellen Parser neu einliest.
-// Manuell angelegte Inserate und solche mit Notiz bleiben erhalten.
+// Manuell angelegte Inserate, Favoriten und solche mit Notiz bleiben erhalten.
 func (s *Store) ResetImported() (int64, error) {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return 0, err
 	}
 	defer tx.Rollback()
-	res, err := tx.Exec(`DELETE FROM listings WHERE source != 'manual' AND note = ''`)
+	res, err := tx.Exec(`DELETE FROM listings WHERE source != 'manual' AND note = '' AND favorite = 0`)
 	if err != nil {
 		return 0, err
 	}

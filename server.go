@@ -262,6 +262,8 @@ func (a *App) routes() http.Handler {
 	app.HandleFunc("POST /inserate/{id}/ausblenden", a.listingHide(true))
 	app.HandleFunc("POST /inserate/{id}/einblenden", a.listingHide(false))
 	app.HandleFunc("POST /inserate/{id}/loeschen", a.listingDelete)
+	app.HandleFunc("POST /inserate/{id}/favorit", a.listingFavorite(true))
+	app.HandleFunc("POST /inserate/{id}/kein-favorit", a.listingFavorite(false))
 	app.HandleFunc("GET /staedte", a.citiesPage)
 	app.HandleFunc("POST /staedte", a.cityCreate)
 	app.HandleFunc("GET /staedte/{id}", a.cityEditForm)
@@ -342,6 +344,7 @@ func (a *App) dashboard(w http.ResponseWriter, r *http.Request) {
 		ShowHidden: q.Get("ausgeblendet") == "1",
 		OnlyActive: q.Get("inaktive") != "1",
 		CityID:     atoiDefault(q.Get("stadt"), 0),
+		Favorites:  q.Get("fav") == "1",
 		Sort:       q.Get("sort"),
 	}
 	if v := parseGermanFloat(q.Get("min")); v > 0 {
@@ -375,7 +378,15 @@ func (a *App) dashboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	last, _ := a.store.RecentFetches(1)
+	favCount := 0
+	for _, l := range listings {
+		if l.Favorite {
+			favCount++
+		}
+	}
 	data := map[string]any{
+		"FavCount":       favCount,
+		"Back":           safeBack("/?" + r.URL.RawQuery),
 		"Title":          "Inserate",
 		"Nav":            "dashboard",
 		"Rows":           rows,
@@ -543,6 +554,22 @@ func (a *App) listingHide(hide bool) http.HandlerFunc {
 			msg = "Inserat wieder eingeblendet."
 		}
 		redirect(w, r, back, msg)
+	}
+}
+
+func (a *App) listingFavorite(fav bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := pathID(r)
+		if err := a.store.SetFavorite(id, fav); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		back := safeBack(r.PostFormValue("back"))
+		if r.PostFormValue("back") == "edit" {
+			back = "/inserate/" + strconv.FormatInt(id, 10)
+		}
+		// Zurück an die Zeile springen, damit die Liste nicht nach oben springt.
+		http.Redirect(w, r, back+"#inserat-"+strconv.FormatInt(id, 10), http.StatusSeeOther)
 	}
 }
 

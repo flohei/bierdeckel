@@ -2,6 +2,10 @@
 <h1>{{.Title}}</h1>
 {{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
 {{if not .New}}
+<form method="post" action="/inserate/{{.L.ID}}/{{if .L.Favorite}}kein-favorit{{else}}favorit{{end}}" class="fav-form">
+  <input type="hidden" name="back" value="edit">
+  <button class="fav fav-labeled" aria-pressed="{{if .L.Favorite}}true{{else}}false{{end}}"><span aria-hidden="true">{{if .L.Favorite}}★{{else}}☆{{end}}</span> {{if .L.Favorite}}Favorit{{else}}Als Favorit merken{{end}}</button>
+</form>
 <p class="muted">
   {{sourceLabel .L.Source}} · <a href="{{.L.URL}}" rel="noopener noreferrer" target="_blank">Exposé öffnen</a> ·
   zuerst gesehen {{date .L.FirstSeen}}, zuletzt {{date .L.LastSeen}}{{if gt .L.FirstPrice .L.Price}} · Startpreis {{eur .L.FirstPrice}}{{end}}

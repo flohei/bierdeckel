@@ -1,6 +1,6 @@
 {{define "content"}}
 <div class="head-row">
-  <h1>Inserate</h1>
+  <h1>{{if .Filter.Favorites}}Favoriten{{else}}Inserate{{end}}</h1>
   <a class="button secondary" href="/inserate/neu">+ Manuell hinzufügen</a>
 </div>
 
@@ -29,6 +29,7 @@
     </select>
   </label>
   <fieldset class="checks">
+    <label><input type="checkbox" name="fav" value="1" {{if .Filter.Favorites}}checked{{end}}> nur Favoriten{{if .FavCount}} ({{.FavCount}}){{end}}</label>
     <label><input type="checkbox" name="alle" value="1" {{if .Filter.All}}checked{{end}}> auch darunter</label>
     <label><input type="checkbox" name="inaktive" value="1" {{if not .Filter.OnlyActive}}checked{{end}}> inaktive Städte</label>
     <label><input type="checkbox" name="ausgeblendet" value="1" {{if .Filter.ShowHidden}}checked{{end}}> ausgeblendete</label>
@@ -57,12 +58,16 @@
   </thead>
   <tbody>
   {{range .Rows}}
-    <tr class="{{if .Hidden}}is-hidden{{end}}">
+    <tr id="inserat-{{.ID}}" class="{{if .Hidden}}is-hidden{{end}}{{if .Favorite}} is-favorite{{end}}">
       <td data-label="Rendite">
         <span class="yield {{yieldClass . $.Filter.Threshold}}">{{if .Yield}}{{num .Yield 1}} %{{else}}–{{end}}</span>
         {{if .Factor}}<span class="muted small block">Faktor {{num .Factor 1}}</span>{{end}}
       </td>
       <td class="title-cell">
+        <form method="post" action="/inserate/{{.ID}}/{{if .Favorite}}kein-favorit{{else}}favorit{{end}}" class="fav-form">
+          <input type="hidden" name="back" value="{{$.Back}}">
+          <button class="fav" aria-pressed="{{if .Favorite}}true{{else}}false{{end}}" title="{{if .Favorite}}Aus Favoriten entfernen{{else}}Als Favorit merken{{end}}"><span aria-hidden="true">{{if .Favorite}}★{{else}}☆{{end}}</span><span class="visually-hidden">Favorit</span></button>
+        </form>
         {{if .URL}}<a href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{if .Title}}{{.Title}}{{else}}Exposé {{.ExternalID}}{{end}}</a>{{else}}<strong>{{if .Title}}{{.Title}}{{else}}Inserat {{.ExternalID}}{{end}}</strong>{{end}}
         {{if .New}}<span class="badge new">neu</span>{{end}}
         <span class="muted small block">
@@ -83,7 +88,7 @@
         {{if .URL}}<a class="button expose" href="{{.URL}}" rel="noopener noreferrer" target="_blank" title="{{if isTracking .URL}}Über Weiterleitung des Anbieters{{else}}Direkt zum Exposé{{end}}">Exposé ↗</a>{{end}}
         <a class="small" href="/inserate/{{.ID}}">Bearbeiten</a>
         <form method="post" action="/inserate/{{.ID}}/{{if .Hidden}}einblenden{{else}}ausblenden{{end}}">
-          <input type="hidden" name="back" value="/?min={{$.MinInput}}&amp;stadt={{$.Filter.CityID}}&amp;sort={{$.Filter.Sort}}{{if $.Filter.All}}&amp;alle=1{{end}}{{if not $.Filter.OnlyActive}}&amp;inaktive=1{{end}}{{if $.Filter.ShowHidden}}&amp;ausgeblendet=1{{end}}">
+          <input type="hidden" name="back" value="{{$.Back}}">
           <button class="link small">{{if .Hidden}}Einblenden{{else}}Ausblenden{{end}}</button>
         </form>
       </td>
@@ -93,7 +98,10 @@
 </table>
 {{else}}
 <div class="empty">
-  {{if .TotalListings}}
+  {{if .Filter.Favorites}}
+  <p>Noch keine Favoriten. Mit ☆ in der Übersicht merkst du dir ein Inserat.</p>
+  <p><a href="/">Zur Übersicht</a></p>
+  {{else if .TotalListings}}
   <p>Kein Inserat erreicht {{.MinInput}} % Bruttomietrendite.</p>
   <p><a href="/?alle=1&amp;inaktive=1">Alle {{.TotalListings}} Inserate anzeigen</a></p>
   {{else}}

@@ -7,6 +7,9 @@ Kategorien: **Neu** · **Verbessert** · **Behoben** · **Intern**
 ## Unveröffentlicht
 
 ### Neu
+- Favoriten: Inserate per ☆ in der Übersicht oder auf der Detailseite merken, Filter „nur Favoriten“ (mit Anzahl). Favoriten bleiben sichtbar, auch wenn sie unter den Schwellwert fallen, und überstehen `bierdeckel reimport` (#4)
+
+### Neu
 - „Exposé ↗“-Button in jeder Zeile der Übersicht (#3)
 - Weiterleitungs-Links aus immowelt-Mails werden beim Einlesen zum direkten Exposé-Link aufgelöst; die Exposé-Seite selbst wird dabei nicht abgerufen (#3)
 - Link zum Exposé lässt sich beim Bearbeiten eines Inserats von Hand setzen (#3)

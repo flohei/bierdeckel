@@ -111,6 +111,7 @@ type Filter struct {
 	ShowHidden bool
 	OnlyActive bool  // Inserate aus inaktiven Städten ausblenden
 	CityID     int64 // 0 = alle
+	Favorites  bool  // nur Favoriten (unabhängig von Schwellwert, Ausblenden und inaktiven Städten)
 	Sort       string
 }
 
@@ -124,17 +125,21 @@ var sortKeys = map[string]string{
 func buildRows(listings []Listing, cities []City, f Filter, now time.Time) []Row {
 	var rows []Row
 	for _, l := range listings {
-		if l.Hidden && !f.ShowHidden {
+		if f.Favorites && !l.Favorite {
+			continue
+		}
+		if l.Hidden && !f.ShowHidden && !f.Favorites {
 			continue
 		}
 		r := evaluate(l, cities, now)
 		if f.CityID != 0 && (r.City == nil || r.City.ID != f.CityID) {
 			continue
 		}
-		if f.OnlyActive && r.City != nil && !r.City.Active {
+		if !f.Favorites && f.OnlyActive && r.City != nil && !r.City.Active {
 			continue
 		}
-		if !f.All && r.Yield < f.Threshold {
+		// Favoriten bleiben sichtbar, auch wenn sie (z. B. nach Änderung des Mietspiegels) unter den Schwellwert fallen.
+		if !f.All && !l.Favorite && r.Yield < f.Threshold {
 			continue
 		}
 		rows = append(rows, r)

@@ -103,3 +103,18 @@ func TestResetImported(t *testing.T) {
 		t.Errorf("IMAP-Stand nicht zurückgesetzt: %d %d", v, last)
 	}
 }
+
+func TestResetImportedKeepsFavorites(t *testing.T) {
+	s := newTestStore(t)
+	s.UpsertListing(Listing{Source: "immowelt", ExternalID: "h-1"})
+	s.UpsertListing(Listing{Source: "immowelt", ExternalID: "h-2"})
+	ls, _ := s.Listings()
+	s.SetFavorite(ls[0].ID, true)
+	if n, _ := s.ResetImported(); n != 1 {
+		t.Errorf("%d gelöscht", n)
+	}
+	ls, _ = s.Listings()
+	if len(ls) != 1 || !ls[0].Favorite {
+		t.Errorf("Favorit nicht erhalten: %+v", ls)
+	}
+}
