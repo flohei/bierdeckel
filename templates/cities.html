@@ -19,6 +19,32 @@
 </table>
 {{end}}
 
+{{if .Suggestions}}
+<h2>Aus Inseraten erkannt</h2>
+<p class="muted small">Orte aus eingelesenen Inseraten, die noch keiner Stadt zugeordnet sind. Mietspiegel eintragen (oder später ergänzen) und übernehmen.</p>
+<table class="suggestions">
+  <thead><tr><th scope="col">Ort</th><th scope="col">PLZ</th><th scope="col" class="num">Inserate</th><th scope="col">Mietspiegel</th></tr></thead>
+  <tbody>
+  {{range .Suggestions}}
+  <tr>
+    <td>{{.Name}}</td>
+    <td class="small">{{if .Postcodes}}{{join .Postcodes ", "}}{{else}}<span class="muted">–</span>{{end}}</td>
+    <td class="num">{{.Count}}</td>
+    <td>
+      <form method="post" action="/staedte" class="row-form">
+        <input type="hidden" name="name" value="{{.Name}}">
+        <input type="hidden" name="postcodes" value="{{join .Postcodes ", "}}">
+        <input type="hidden" name="active" value="1">
+        <span class="suffix"><input name="rent_per_m2" inputmode="decimal" placeholder="8,50" aria-label="Mietspiegel für {{.Name}} in €/m²"> €/m²</span>
+        <button>Übernehmen</button>
+      </form>
+    </td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+{{end}}
+
 <h2>Stadt hinzufügen</h2>
 {{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
 <form method="post" action="/staedte" class="stack">

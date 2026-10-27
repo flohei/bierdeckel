@@ -126,6 +126,9 @@ tr.is-hidden td { opacity: .55; }
 .title-cell a { font-weight: 600; }
 .note { display: block; margin-top: .25rem; font-style: italic; }
 .drop { color: var(--good); }
+.row-form { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.row-form .suffix input { width: 5.5rem; margin: 0; }
+.row-form button { padding: .4rem .8rem; }
 
 .yield {
   display: inline-block; min-width: 4.2rem; padding: .15rem .45rem; border-radius: 6px; text-align: center;
@@ -160,6 +163,7 @@ tr.is-hidden td { opacity: .55; }
   table.listings td.num::before { content: attr(data-label) ": "; color: var(--muted); }
   table.listings td.num .block { display: inline; margin-left: .3rem; }
   table.listings td.actions { grid-column: 1 / -1; text-align: left; padding-top: .35rem; }
-  table.cities th:nth-child(2), table.cities td:nth-child(2) { display: none; }
+  table.cities th:nth-child(2), table.cities td:nth-child(2),
+  table.suggestions th:nth-child(2), table.suggestions td:nth-child(2) { display: none; }
   table.log { font-size: .85rem; }
 }
