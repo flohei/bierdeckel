@@ -13,6 +13,7 @@
   --near: #8a6100;
   --near-bg: #f7ecc9;
   --danger: #a3261b;
+  --star: #c2851a;
   --radius: 10px;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --num: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -33,6 +34,7 @@
     --near: #e6c068;
     --near-bg: #3b3218;
     --danger: #f07c6e;
+    --star: #e2ac43;
   }
 }
 
@@ -127,6 +129,15 @@ tr.is-hidden td { opacity: .55; }
 .title-cell a { font-weight: 600; }
 .note { display: block; margin-top: .25rem; font-style: italic; }
 .drop { color: var(--good); }
+.fav-form { display: inline; }
+button.fav {
+  background: none; padding: 0 .3rem 0 0; font-size: 1.25rem; line-height: 1; font-weight: 400;
+  color: var(--muted); vertical-align: -1px;
+}
+button.fav[aria-pressed="true"] { color: var(--star); }
+button.fav:hover { color: var(--star); }
+button.fav.fav-labeled { font-size: 1rem; padding: 0; margin-bottom: .5rem; }
+tr.is-favorite td:first-child { box-shadow: inset 3px 0 0 var(--star); }
 .row-form { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
 .row-form .suffix input { width: 5.5rem; margin: 0; }
 .row-form button { padding: .4rem .8rem; }
@@ -159,6 +170,8 @@ tr.is-hidden td { opacity: .55; }
     margin-bottom: .75rem; padding: .75rem; background: var(--surface); border-radius: var(--radius); box-shadow: inset 0 0 0 1px var(--line);
   }
   table.listings td { padding: 0; border: 0; }
+  table.listings tr.is-favorite { box-shadow: inset 4px 0 0 var(--star), inset 0 0 0 1px var(--line); }
+  table.listings tr.is-favorite td:first-child { box-shadow: none; }
   table.listings td[data-label="Rendite"] { grid-row: span 2; }
   table.listings td.num { text-align: left; grid-column: 2; font-size: .9rem; }
   table.listings td.num::before { content: attr(data-label) ": "; color: var(--muted); }

@@ -233,3 +233,52 @@ func TestDashboardExposeLinkAndEditURL(t *testing.T) {
 		t.Errorf("javascript-URL: %d", w.Code)
 	}
 }
+
+func TestFavorites(t *testing.T) {
+	a, h := newTestApp(t)
+	a.store.UpsertListing(Listing{Source: "is24", ExternalID: "1", URL: "https://www.immobilienscout24.de/expose/1", Title: "Rendite-Perle", Price: 100000, RentActual: 600}) // 7,2 %
+	a.store.UpsertListing(Listing{Source: "is24", ExternalID: "2", URL: "https://www.immobilienscout24.de/expose/2", Title: "Teures Loft", Price: 400000, RentActual: 1000})  // 3 %
+	ls, _ := a.store.Listings()
+	ids := map[string]string{}
+	for _, l := range ls {
+		ids[l.Title] = itoa(l.ID)
+	}
+
+	// Stern setzen, Rücksprung auf die gleiche Ansicht samt Anker.
+	w := do(h, "POST", "/inserate/"+ids["Teures Loft"]+"/favorit", url.Values{"back": {"/?sort=preis&min=4"}}, nil)
+	if w.Code != http.StatusSeeOther || w.Header().Get("Location") != "/?min=4&sort=preis#inserat-"+ids["Teures Loft"] {
+		t.Fatalf("favorisieren: %d %q", w.Code, w.Header().Get("Location"))
+	}
+
+	// Favorit bleibt sichtbar, obwohl unter dem Schwellwert.
+	body := do(h, "GET", "/", nil, nil).Body.String()
+	if !strings.Contains(body, "Teures Loft") || !strings.Contains(body, `aria-pressed="true"`) {
+		t.Error("Favorit unter Schwellwert sollte sichtbar sein")
+	}
+
+	// Filter „nur Favoriten“, auch wenn ausgeblendet.
+	a.store.SetHidden(atoi(ids["Teures Loft"]), true)
+	body = do(h, "GET", "/?fav=1", nil, nil).Body.String()
+	if !strings.Contains(body, "Teures Loft") || strings.Contains(body, "Rendite-Perle") || !strings.Contains(body, "<h1>Favoriten</h1>") {
+		t.Errorf("Favoritenfilter:\n%s", body)
+	}
+	if !strings.Contains(body, "nur Favoriten (1)") {
+		t.Error("Anzahl der Favoriten fehlt")
+	}
+
+	// Entfernen vom Bearbeiten-Formular aus.
+	w = do(h, "POST", "/inserate/"+ids["Teures Loft"]+"/kein-favorit", url.Values{"back": {"edit"}}, nil)
+	if !strings.HasPrefix(w.Header().Get("Location"), "/inserate/"+ids["Teures Loft"]) {
+		t.Errorf("Rücksprung: %q", w.Header().Get("Location"))
+	}
+	if strings.Contains(do(h, "GET", "/?fav=1", nil, nil).Body.String(), "Teures Loft") {
+		t.Error("sollte kein Favorit mehr sein")
+	}
+	// Fremde Rücksprungziele werden verworfen.
+	w = do(h, "POST", "/inserate/"+ids["Rendite-Perle"]+"/favorit", url.Values{"back": {"//evil.example/"}}, nil)
+	if loc := w.Header().Get("Location"); !strings.HasPrefix(loc, "/#") {
+		t.Errorf("Rücksprung: %q", loc)
+	}
+}
+
+func atoi(s string) int64 { n, _ := strconv.ParseInt(s, 10, 64); return n }
