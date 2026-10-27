@@ -319,6 +319,26 @@ func (s *Store) DeleteListing(id int64) error {
 	return err
 }
 
+// ResetImported löscht alle aus Mails gelesenen Inserate ohne Notiz und setzt den
+// IMAP-Stand zurück, damit der nächste Abruf alles mit dem aktuellen Parser neu einliest.
+// Manuell angelegte Inserate und solche mit Notiz bleiben erhalten.
+func (s *Store) ResetImported() (int64, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	res, err := tx.Exec(`DELETE FROM listings WHERE source != 'manual' AND note = ''`)
+	if err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(`DELETE FROM mail_state`); err != nil {
+		return 0, err
+	}
+	n, _ := res.RowsAffected()
+	return n, tx.Commit()
+}
+
 // ---- Einstellungen ----
 
 const defaultThreshold = 5.0

@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -158,5 +159,49 @@ func TestNoListingsInUnrelatedMail(t *testing.T) {
 	msg := Message{From: "Freund <a@example.org>", Text: "Hi, kostet 150.000 € und hat 60 m². https://example.org/foo"}
 	if ls := parseListings(msg); len(ls) != 0 {
 		t.Errorf("keine Inserate erwartet: %+v", ls)
+	}
+}
+
+// Aufbau einer echten immowelt-Alert-Mail (Okt. 2026), Links und Inhalte ersetzt:
+// alle Links laufen verschlüsselt über click.by.immowelt.de, der Ort steht über drei Zeilen verteilt.
+func TestParseImmoweltOct2026(t *testing.T) {
+	ls := mustParseFile(t, "testdata/immowelt-2026-10.eml")
+	if len(ls) != 2 {
+		t.Fatalf("2 Inserate erwartet, %d gefunden: %+v", len(ls), ls)
+	}
+	a := ls[0]
+	if !a.Hashed || a.Source != "immowelt" || a.Title != "Helle 2-Zimmerwohnung mit Balkon und Tiefgarage" {
+		t.Errorf("Kennung/Titel: %+v", a.Listing)
+	}
+	if a.Price != 199000 || a.Area != 67 || a.Rooms != 1.5 || a.Postcode != "85055" || a.Address != "Ingolstadt, Ingolstadt (85055)" {
+		t.Errorf("Werte: %+v", a.Listing)
+	}
+	if !strings.HasPrefix(a.URL, "https://click.by.immowelt.de/?qs=FAKE0011") {
+		t.Errorf("Link sollte der am Titel sein: %s", a.URL)
+	}
+	if name, pc := placeName(ls[1].Listing); name != "Ansbach" || pc != "91522" {
+		t.Errorf("Ort des zweiten Inserats: %q %q", name, pc)
+	}
+	// Footer-Adresse (AVIV, Nürnberg) darf nicht durchrutschen.
+	for _, l := range ls {
+		if strings.Contains(l.Address, "Nürnberg") {
+			t.Errorf("Footer als Ort: %q", l.Address)
+		}
+	}
+}
+
+func TestProviderLinesAreNotPlaces(t *testing.T) {
+	l := extractFields("Schöne 3-Zimmer-Wohnung mit Garten\nImmobilien Zentrum Vertriebs GmbH\n229.000 € · 81 m² · 3 Zi.")
+	if l.Title != "Schöne 3-Zimmer-Wohnung mit Garten" || l.Address != "" {
+		t.Errorf("Anbieter als Ort: %+v", l)
+	}
+	l = extractFields("Kapitalanlage nahe Altstadt\nSparkasse Nürnberg\nNürnberg, Gostenhof\n189.000 €")
+	if l.Address != "Nürnberg, Gostenhof" {
+		t.Errorf("Ort nach Anbieter: %q", l.Address)
+	}
+	for _, s := range []string{"Deine ersten Treffer zur Suche", "Weitere Immobilien im Projekt anzeigen", "RE/MAX in Regensburg & Ostbayern", "Rathay Immobilien eG", "Löw Immobilien GmbH"} {
+		if l := extractFields("Wohnung mit Balkon und Lift\n" + s + "\n150.000 €"); l.Address != "" {
+			t.Errorf("%q als Ort erkannt", s)
+		}
 	}
 }

@@ -88,6 +88,8 @@ Verwendung:
                               Gespeicherte Alert-Mails einlesen (zum Testen und Nachtragen)
   bierdeckel parse <datei.eml>
                               Mail nur analysieren und erkannte Inserate ausgeben (speichert nichts)
+  bierdeckel reimport         Aus Mails gelesene Inserate löschen und beim nächsten Abruf
+                              neu einlesen (nach Parser-Verbesserungen; Notizen bleiben)
   bierdeckel version          Version ausgeben
 
 Konfiguration über Umgebungsvariablen, siehe README.md.
@@ -143,6 +145,12 @@ func main() {
 		if res.Err != nil {
 			os.Exit(1)
 		}
+	case "reimport":
+		n, err := store.ResetImported()
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("%d Inserate gelöscht. Der nächste Abruf liest alle Mails neu ein.\n", n)
 	case "import":
 		if len(os.Args) < 3 {
 			log.Fatal("Verwendung: bierdeckel import <datei.eml>…")
