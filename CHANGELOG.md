@@ -6,6 +6,8 @@ Kategorien: **Neu** · **Verbessert** · **Behoben** · **Intern**
 
 ## Unveröffentlicht
 
+## v0.1.1 – 27.10.2026
+
 ### Neu
 - Dashboard mit allen Inseraten über einer Mindest-Bruttomietrendite (Standard 5 %), sortierbar nach Rendite, Datum, Preis und €/m², mit Kaufpreisfaktor und Preissenkungen
 - Städteliste mit Postleitzahlen und Mietspiegel (€/m² nettokalt); Inserate werden über PLZ oder Ortsnamen zugeordnet
