@@ -6,6 +6,8 @@ Kategorien: **Neu** · **Verbessert** · **Behoben** · **Intern**
 
 ## Unveröffentlicht
 
+## v0.1.5 – 27.10.2026
+
 ### Neu
 - „Exposé ↗“-Button in jeder Zeile der Übersicht (#3)
 - Weiterleitungs-Links aus immowelt-Mails werden beim Einlesen zum direkten Exposé-Link aufgelöst; die Exposé-Seite selbst wird dabei nicht abgerufen (#3)
