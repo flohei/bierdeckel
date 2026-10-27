@@ -253,7 +253,7 @@ func fetchMail(ctx context.Context, cfg Config, store *Store) (res FetchResult) 
 			res.Err = err
 			return
 		}
-		total, fresh, err := importMessage(store, raw)
+		total, fresh, err := importMessage(ctx, store, raw)
 		if err != nil {
 			// Eine kaputte Mail soll den Abruf nicht dauerhaft blockieren.
 			log.Printf("Mail UID %d: %v", uid, err)

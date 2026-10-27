@@ -251,7 +251,7 @@ func (s *Store) UpsertListing(l Listing) (bool, error) {
 		last_seen   = ?,
 		price       = CASE WHEN ? > 0 THEN ? ELSE price END,
 		first_price = CASE WHEN first_price = 0 THEN ? ELSE first_price END,
-		url         = CASE WHEN url = '' THEN ? ELSE url END,
+		url         = CASE WHEN url = '' OR (? LIKE '%/expose/%' AND url NOT LIKE '%/expose/%') THEN ? ELSE url END,
 		title       = CASE WHEN ? != '' THEN ? ELSE title END,
 		address     = CASE WHEN address = '' THEN ? ELSE address END,
 		postcode    = CASE WHEN postcode = '' THEN ? ELSE postcode END,
@@ -259,7 +259,7 @@ func (s *Store) UpsertListing(l Listing) (bool, error) {
 		rooms       = CASE WHEN rooms = 0 THEN ? ELSE rooms END,
 		rent_actual = COALESCE(?, rent_actual)
 		WHERE id = ?`,
-		now, l.Price, l.Price, l.Price, l.URL, l.Title, l.Title, l.Address, l.Postcode, l.Area, l.Rooms, rent, id)
+		now, l.Price, l.Price, l.Price, l.URL, l.URL, l.Title, l.Title, l.Address, l.Postcode, l.Area, l.Rooms, rent, id)
 	if err != nil {
 		return false, err
 	}
@@ -309,8 +309,8 @@ func (s *Store) UpdateListingManual(l Listing) error {
 	if l.RentActual > 0 {
 		rent = l.RentActual
 	}
-	_, err := s.db.Exec(`UPDATE listings SET title = ?, address = ?, postcode = ?, price = ?, area = ?, rooms = ?, rent_actual = ?, note = ? WHERE id = ?`,
-		l.Title, l.Address, l.Postcode, l.Price, l.Area, l.Rooms, rent, l.Note, l.ID)
+	_, err := s.db.Exec(`UPDATE listings SET url = ?, title = ?, address = ?, postcode = ?, price = ?, area = ?, rooms = ?, rent_actual = ?, note = ? WHERE id = ?`,
+		l.URL, l.Title, l.Address, l.Postcode, l.Price, l.Area, l.Rooms, rent, l.Note, l.ID)
 	return err
 }
 

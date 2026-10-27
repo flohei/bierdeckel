@@ -123,6 +123,7 @@ th { font-size: .8rem; font-weight: 600; color: var(--muted); text-transform: up
 tr.is-hidden td { opacity: .55; }
 .actions { white-space: nowrap; text-align: right; }
 .actions form { display: inline; margin-left: .6rem; }
+.actions .button.expose { padding: .3rem .7rem; font-size: .85rem; margin-right: .6rem; }
 .title-cell a { font-weight: 600; }
 .note { display: block; margin-top: .25rem; font-style: italic; }
 .drop { color: var(--good); }
