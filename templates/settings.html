@@ -1,0 +1,33 @@
+{{define "content"}}
+<h1>Einstellungen</h1>
+
+<section>
+<h2>Schwellwert</h2>
+<form method="post" action="/einstellungen" class="inline">
+  <label>Mindest-Bruttomietrendite <span class="suffix"><input name="threshold" inputmode="decimal" value="{{.Threshold}}" size="4" required> %</span></label>
+  <button>Speichern</button>
+</form>
+<p class="muted small">Standardwert fürs Dashboard; dort lässt er sich pro Ansicht überschreiben.</p>
+</section>
+
+<section>
+<h2>Postfach</h2>
+{{if .IMAP}}
+<p>{{.IMAPUser}} auf {{.IMAPAddr}}, Ordner „{{.Mailbox}}“ · Abruf alle {{.Interval}}</p>
+<form method="post" action="/abruf"><button {{if .Fetching}}disabled{{end}}>{{if .Fetching}}Abruf läuft …{{else}}Jetzt abrufen{{end}}</button></form>
+{{else}}
+<p>Nicht konfiguriert. Siehe README: <code>BIERDECKEL_IMAP_ADDR</code>, <code>BIERDECKEL_IMAP_USER</code>, <code>BIERDECKEL_IMAP_PASSWORD</code>.</p>
+{{end}}
+
+{{if .Fetches}}
+<table class="log">
+  <thead><tr><th scope="col">Zeitpunkt</th><th scope="col" class="num">Mails</th><th scope="col" class="num">Neu</th><th scope="col" class="num">Aktualisiert</th><th scope="col">Status</th></tr></thead>
+  <tbody>
+  {{range .Fetches}}
+  <tr><td>{{datetime .Finished}}</td><td class="num">{{.Messages}}</td><td class="num">{{.New}}</td><td class="num">{{.Updated}}</td><td>{{if .ErrText}}<span class="warn">{{.ErrText}}</span>{{else}}ok{{end}}</td></tr>
+  {{end}}
+  </tbody>
+</table>
+{{end}}
+</section>
+{{end}}

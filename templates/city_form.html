@@ -1,0 +1,12 @@
+{{define "content"}}
+<h1>{{.C.Name}}</h1>
+{{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
+<form method="post" action="/staedte/{{.C.ID}}" class="stack">
+  {{template "cityfields" .C}}
+  <p><button>Speichern</button> <a href="/staedte">Abbrechen</a></p>
+</form>
+<form method="post" action="/staedte/{{.C.ID}}/loeschen" class="danger-zone">
+  <button class="danger">Stadt entfernen</button>
+  <span class="muted small">Inserate bleiben erhalten, haben dann aber keinen Mietspiegel mehr.</span>
+</form>
+{{end}}

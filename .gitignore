@@ -1,0 +1,6 @@
+bierdeckel
+/data/
+*.db
+*.db-*
+*.eml
+!testdata/*.eml

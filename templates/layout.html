@@ -1,0 +1,39 @@
+{{define "layout"}}<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>{{if .Title}}{{.Title}} · {{end}}Bierdeckel</title>
+<link rel="stylesheet" href="{{asset "style.css"}}">
+<link rel="icon" href="{{asset "icon.svg"}}" type="image/svg+xml">
+<meta name="theme-color" content="#f4efe6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#191b1d" media="(prefers-color-scheme: dark)">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/"><img src="{{asset "icon.svg"}}" alt="" width="28" height="28"> Bierdeckel</a>
+  <nav aria-label="Hauptnavigation">
+    <a href="/" {{if eq .Nav "dashboard"}}aria-current="page"{{end}}>Inserate</a>
+    <a href="/staedte" {{if eq .Nav "cities"}}aria-current="page"{{end}}>Städte</a>
+    <a href="/einstellungen" {{if eq .Nav "settings"}}aria-current="page"{{end}}>Einstellungen</a>
+  </nav>
+</header>
+<main>
+{{with .Flash}}<p class="flash" role="status">{{.}}</p>{{end}}
+{{template "content" .}}
+</main>
+<footer class="foot muted small">Bierdeckel {{version}} · Bruttomietrendite = Jahresnettokaltmiete ÷ Kaufpreis</footer>
+</body>
+</html>{{end}}
+
+
+{{define "cityfields"}}
+<div class="grid2">
+  <label>Name <input name="name" required value="{{.Name}}"></label>
+  <label>Mietspiegel (€/m² nettokalt) <input name="rent_per_m2" inputmode="decimal" value="{{in .RentPerM2}}" placeholder="8,50"></label>
+</div>
+<label>Postleitzahlen (optional, kommagetrennt) <input name="postcodes" value="{{join .Postcodes ", "}}"></label>
+<label>Notiz / Quelle des Mietspiegels <input name="note" value="{{.Note}}"></label>
+<label class="check"><input type="checkbox" name="active" value="1" {{if .Active}}checked{{end}}> aktiv (im Dashboard berücksichtigen)</label>
+{{end}}

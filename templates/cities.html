@@ -1,0 +1,28 @@
+{{define "content"}}
+<h1>Städte</h1>
+<p class="muted">Inserate werden über die Postleitzahl, sonst über den Ortsnamen zugeordnet. Der Mietspiegel-Wert (Nettokaltmiete pro m²) ergibt die angesetzte Miete.</p>
+
+{{if .Cities}}
+<table class="cities">
+  <thead><tr><th scope="col">Stadt</th><th scope="col">PLZ</th><th scope="col" class="num">Mietspiegel</th><th scope="col" class="num">Inserate</th><th scope="col"><span class="visually-hidden">Aktionen</span></th></tr></thead>
+  <tbody>
+  {{range .Cities}}
+  <tr class="{{if not .Active}}is-hidden{{end}}">
+    <td>{{.Name}}{{if not .Active}} <span class="badge">inaktiv</span>{{end}}{{with .Note}}<span class="muted small block">{{.}}</span>{{end}}</td>
+    <td class="small">{{if .Postcodes}}{{join .Postcodes ", "}}{{else}}<span class="muted">–</span>{{end}}</td>
+    <td class="num">{{if .RentPerM2}}{{num .RentPerM2 2}} €/m²{{else}}<span class="warn">fehlt</span>{{end}}</td>
+    <td class="num">{{index $.Counts .ID}}</td>
+    <td class="actions"><a class="small" href="/staedte/{{.ID}}">Bearbeiten</a></td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+{{end}}
+
+<h2>Stadt hinzufügen</h2>
+{{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
+<form method="post" action="/staedte" class="stack">
+  {{template "cityfields" .Draft}}
+  <p><button>Hinzufügen</button></p>
+</form>
+{{end}}

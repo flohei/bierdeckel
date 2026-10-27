@@ -1,0 +1,103 @@
+{{define "content"}}
+<div class="head-row">
+  <h1>Inserate</h1>
+  <a class="button secondary" href="/inserate/neu">+ Manuell hinzufügen</a>
+</div>
+
+{{if not .Cities}}
+<p class="notice">Noch keine Städte hinterlegt. <a href="/staedte">Städte mit Mietspiegel anlegen</a>, damit die Rendite berechnet werden kann.</p>
+{{else if .MissingRent}}
+<p class="notice">Ohne Mietspiegel-Wert keine Rendite für: {{join .MissingRent ", "}}. <a href="/staedte">Jetzt ergänzen</a></p>
+{{end}}
+{{if not .IMAP}}
+<p class="notice">Kein Postfach konfiguriert – neue Inserate kommen nur per „Manuell hinzufügen“ oder <code>bierdeckel import</code>.</p>
+{{end}}
+
+<form class="filters" method="get" action="/">
+  <label>Mindestrendite
+    <span class="suffix"><input name="min" inputmode="decimal" value="{{.MinInput}}" size="4" aria-describedby="min-hint"> %</span>
+  </label>
+  <label>Stadt
+    <select name="stadt">
+      <option value="0">Alle</option>
+      {{range .Cities}}<option value="{{.ID}}" {{if eq .ID $.Filter.CityID}}selected{{end}}>{{.Name}}{{if not .Active}} (inaktiv){{end}}</option>{{end}}
+    </select>
+  </label>
+  <label>Sortierung
+    <select name="sort">
+      {{range sortKeys}}<option value="{{.}}" {{if eq . $.Filter.Sort}}selected{{end}}>{{sortLabel .}}</option>{{end}}
+    </select>
+  </label>
+  <fieldset class="checks">
+    <label><input type="checkbox" name="alle" value="1" {{if .Filter.All}}checked{{end}}> auch darunter</label>
+    <label><input type="checkbox" name="inaktive" value="1" {{if not .Filter.OnlyActive}}checked{{end}}> inaktive Städte</label>
+    <label><input type="checkbox" name="ausgeblendet" value="1" {{if .Filter.ShowHidden}}checked{{end}}> ausgeblendete</label>
+  </fieldset>
+  <button>Anzeigen</button>
+</form>
+<p id="min-hint" class="muted small">
+  {{len .Rows}} von {{.TotalListings}} Inseraten.
+  {{with .LastFetch}}Letzter Abruf {{since .Finished}}{{if .ErrText}} – <a href="/einstellungen">mit Fehler</a>{{end}}.{{end}}
+  {{if .Fetching}}Abruf läuft …{{end}}
+  {{if .Unmatched}}{{.Unmatched}} Inserate ohne zugeordnete Stadt.{{end}}
+</p>
+
+{{if .Rows}}
+<table class="listings">
+  <thead>
+    <tr>
+      <th scope="col">Rendite</th>
+      <th scope="col">Inserat</th>
+      <th scope="col" class="num">Kaufpreis</th>
+      <th scope="col" class="num">Fläche</th>
+      <th scope="col" class="num">€/m²</th>
+      <th scope="col" class="num">Miete/Monat</th>
+      <th scope="col"><span class="visually-hidden">Aktionen</span></th>
+    </tr>
+  </thead>
+  <tbody>
+  {{range .Rows}}
+    <tr class="{{if .Hidden}}is-hidden{{end}}">
+      <td data-label="Rendite">
+        <span class="yield {{yieldClass . $.Filter.Threshold}}">{{if .Yield}}{{num .Yield 1}} %{{else}}–{{end}}</span>
+        {{if .Factor}}<span class="muted small block">Faktor {{num .Factor 1}}</span>{{end}}
+      </td>
+      <td class="title-cell">
+        <a href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{if .Title}}{{.Title}}{{else}}Exposé {{.ExternalID}}{{end}}</a>
+        {{if .New}}<span class="badge new">neu</span>{{end}}
+        <span class="muted small block">
+          {{if .City}}{{.City.Name}}{{else if .Address}}{{.Address}}{{else}}Ort unbekannt{{end}}{{if .Rooms}} · {{num .Rooms 1}} Zi.{{end}} · {{sourceLabel .Source}} · {{since .FirstSeen}}
+          {{if gt .FirstPrice .Price}}· <span class="drop">war {{eur .FirstPrice}}</span>{{end}}
+        </span>
+        {{with .Note}}<span class="note small block">{{.}}</span>{{end}}
+      </td>
+      <td data-label="Kaufpreis" class="num">{{eur .Price}}</td>
+      <td data-label="Fläche" class="num">{{if .Area}}{{num .Area 1}} m²{{else}}–{{end}}</td>
+      <td data-label="€/m²" class="num">{{if .PricePerM2}}{{num .PricePerM2 0}} €{{else}}–{{end}}</td>
+      <td data-label="Miete" class="num">
+        {{if .MonthlyRent}}{{num .MonthlyRent 0}} €
+          <span class="muted small block">{{if isActual .RentSource}}Ist-Miete{{else}}{{num .City.RentPerM2 2}} €/m²{{end}}</span>
+        {{else}}–{{end}}
+      </td>
+      <td class="actions">
+        <a class="small" href="/inserate/{{.ID}}">Bearbeiten</a>
+        <form method="post" action="/inserate/{{.ID}}/{{if .Hidden}}einblenden{{else}}ausblenden{{end}}">
+          <input type="hidden" name="back" value="/?min={{$.MinInput}}&amp;stadt={{$.Filter.CityID}}&amp;sort={{$.Filter.Sort}}{{if $.Filter.All}}&amp;alle=1{{end}}{{if not $.Filter.OnlyActive}}&amp;inaktive=1{{end}}{{if $.Filter.ShowHidden}}&amp;ausgeblendet=1{{end}}">
+          <button class="link small">{{if .Hidden}}Einblenden{{else}}Ausblenden{{end}}</button>
+        </form>
+      </td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<div class="empty">
+  {{if .TotalListings}}
+  <p>Kein Inserat erreicht {{.MinInput}} % Bruttomietrendite.</p>
+  <p><a href="/?alle=1&amp;inaktive=1">Alle {{.TotalListings}} Inserate anzeigen</a></p>
+  {{else}}
+  <p>Noch keine Inserate. Sobald Suchauftrags-Mails im Postfach landen, erscheinen sie hier.</p>
+  {{end}}
+</div>
+{{end}}
+{{end}}

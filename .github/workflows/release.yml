@@ -1,0 +1,122 @@
+name: Release
+
+# Jeder Merge nach main erzeugt ein Release (v<VERSION_PREFIX>.<Laufnummer>)
+# und deployt es – falls konfiguriert – auf den Uberspace.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  VERSION_PREFIX: "0.1"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - run: go vet ./...
+      - run: go test -race ./...
+
+      - id: version
+        run: echo "version=v${VERSION_PREFIX}.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      # Vollständig statisches Binary: läuft auf jedem x86_64-Linux, unabhängig von der glibc-Version.
+      - name: Build (linux/amd64, statisch)
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p dist
+          CGO_ENABLED=1 go build -trimpath \
+            -tags 'netgo osusergo sqlite_omit_load_extension' \
+            -ldflags "-s -w -X main.version=${VERSION} -linkmode external -extldflags -static" \
+            -o dist/bierdeckel .
+          ./dist/bierdeckel version
+          tar -C dist -czf "dist/bierdeckel-${VERSION}-linux-amd64.tar.gz" bierdeckel
+          (cd dist && sha256sum *.tar.gz > SHA256SUMS)
+
+      # Release-Notizen aus CHANGELOG.md („Unveröffentlicht“), sonst automatisch aus den PRs.
+      - name: GitHub-Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          .github/scripts/changelog.sh notes > dist/notes.md
+          if [ -s dist/notes.md ]; then
+            notes=(--notes-file dist/notes.md)
+          else
+            notes=(--generate-notes)
+          fi
+          gh release create "$VERSION" dist/*.tar.gz dist/SHA256SUMS \
+            --target "$GITHUB_SHA" --title "$VERSION" "${notes[@]}"
+
+      # „Unveröffentlicht“ wird zur Version; der Commit mit [skip ci] löst keinen weiteren Lauf aus.
+      # Schlägt das Pushen fehl (z. B. Branch-Schutz), bleibt das Release trotzdem gültig.
+      - name: CHANGELOG.md fortschreiben
+        continue-on-error: true
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git fetch origin main
+          git checkout -B main origin/main
+          .github/scripts/changelog.sh release "$VERSION" "$(TZ=Europe/Berlin date +%d.%m.%Y)"
+          if git diff --quiet CHANGELOG.md; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "CHANGELOG: $VERSION [skip ci]" CHANGELOG.md
+          git push origin main
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bierdeckel
+          path: dist/bierdeckel
+          retention-days: 7
+
+  deploy:
+    needs: release
+    # Läuft nur, wenn die Repository-Variable UBERSPACE_HOST gesetzt ist (siehe README).
+    if: vars.UBERSPACE_HOST != ''
+    runs-on: ubuntu-latest
+    environment: uberspace
+    env:
+      HOST: ${{ vars.UBERSPACE_HOST }}
+      USER: ${{ vars.UBERSPACE_USER }}
+      VERSION: ${{ needs.release.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: bierdeckel
+          path: dist
+
+      - name: SSH einrichten
+        env:
+          SSH_KEY: ${{ secrets.UBERSPACE_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.UBERSPACE_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          if [ -n "$KNOWN_HOSTS" ]; then
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -t ed25519 "$HOST" > ~/.ssh/known_hosts
+          fi
+
+      - name: Deploy
+        run: |
+          scp dist/bierdeckel "$USER@$HOST:bierdeckel/releases/bierdeckel-$VERSION.new"
+          ssh "$USER@$HOST" bash -s -- "$VERSION" < deploy/uberspace/deploy.sh

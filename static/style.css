@@ -1,0 +1,165 @@
+/* Bierdeckel – Systemschriften, keine externen Ressourcen, kein JavaScript. */
+
+:root {
+  --bg: #f4efe6;
+  --surface: #fffcf6;
+  --text: #2b2620;
+  --muted: #776d60;
+  --line: #e2d8c6;
+  --accent: #a4561a;
+  --accent-text: #fff;
+  --good: #2f7a3f;
+  --good-bg: #e2f0e1;
+  --near: #8a6100;
+  --near-bg: #f7ecc9;
+  --danger: #a3261b;
+  --radius: 10px;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --num: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #191b1d;
+    --surface: #222528;
+    --text: #e9e5dc;
+    --muted: #9c978c;
+    --line: #34383c;
+    --accent: #e39a5c;
+    --accent-text: #191b1d;
+    --good: #7fd18c;
+    --good-bg: #1f3a24;
+    --near: #e6c068;
+    --near-bg: #3b3218;
+    --danger: #f07c6e;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 var(--sans); }
+a { color: var(--accent); text-underline-offset: 2px; }
+h1 { font-size: 1.6rem; line-height: 1.2; margin: 0 0 .75rem; }
+h2 { font-size: 1.15rem; margin: 2rem 0 .75rem; }
+code { font-family: var(--num); font-size: .9em; }
+
+main { max-width: 72rem; margin: 0 auto; padding: .5rem 1rem 3rem; }
+
+.top {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem;
+  max-width: 72rem; margin: 0 auto; padding: .9rem 1rem;
+}
+.brand { display: inline-flex; align-items: center; gap: .5rem; font-weight: 700; font-size: 1.2rem; color: var(--text); text-decoration: none; }
+.top nav { display: flex; gap: .25rem; flex-wrap: wrap; }
+.top nav a { color: var(--muted); text-decoration: none; padding: .35rem .7rem; border-radius: 999px; }
+.top nav a[aria-current="page"] { background: var(--surface); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
+.foot { max-width: 72rem; margin: 0 auto; padding: 0 1rem 2rem; }
+
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+.block { display: block; }
+.warn { color: var(--danger); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.flash, .notice, .error {
+  padding: .6rem .9rem; border-radius: var(--radius); margin: 0 0 1rem;
+  background: var(--surface); box-shadow: inset 0 0 0 1px var(--line);
+}
+.flash { box-shadow: inset 4px 0 0 var(--good), inset 0 0 0 1px var(--line); }
+.notice { box-shadow: inset 4px 0 0 var(--near), inset 0 0 0 1px var(--line); }
+.error { box-shadow: inset 4px 0 0 var(--danger), inset 0 0 0 1px var(--line); }
+
+.head-row { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+
+/* Formulare */
+input, select, textarea, button { font: inherit; color: inherit; }
+input, select, textarea {
+  width: 100%; padding: .45rem .6rem; border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+}
+input[type="checkbox"] { width: auto; accent-color: var(--accent); }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+label { display: block; font-size: .9rem; color: var(--muted); }
+label > input, label > select, label > textarea, label > .suffix { margin-top: .2rem; color: var(--text); }
+label.check { display: flex; align-items: center; gap: .5rem; color: var(--text); }
+.suffix { display: inline-flex; align-items: center; gap: .35rem; }
+.suffix input { width: 5rem; text-align: right; }
+
+button, .button {
+  display: inline-block; padding: .5rem 1rem; border: 0; border-radius: 8px;
+  background: var(--accent); color: var(--accent-text); font-weight: 600; text-decoration: none; cursor: pointer;
+}
+button:disabled { opacity: .6; cursor: default; }
+.button.secondary { background: var(--surface); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
+button.link { background: none; color: var(--accent); padding: 0; font-weight: 400; text-decoration: underline; text-underline-offset: 2px; }
+button.danger { background: none; color: var(--danger); box-shadow: inset 0 0 0 1px var(--danger); }
+
+.stack { display: grid; gap: .8rem; max-width: 40rem; }
+.stack p { margin: .25rem 0 0; }
+.grid2, .grid3 { display: grid; gap: .8rem; }
+@media (min-width: 40rem) {
+  .grid2 { grid-template-columns: 1fr 1fr; }
+  .grid3 { grid-template-columns: 1fr 1fr 1fr; }
+}
+.inline { display: flex; align-items: flex-end; gap: .75rem; flex-wrap: wrap; }
+.danger-zone { margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--line); display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+
+.filters {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: .75rem 1rem;
+  padding: .8rem 1rem; background: var(--surface); border-radius: var(--radius); box-shadow: inset 0 0 0 1px var(--line);
+}
+.filters select { width: auto; min-width: 9rem; }
+.filters .checks { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .25rem 1rem; }
+.filters .checks label { display: flex; align-items: center; gap: .35rem; color: var(--text); }
+
+/* Tabellen */
+table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--radius); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
+th, td { padding: .6rem .75rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+tbody tr:last-child td { border-bottom: 0; }
+th { font-size: .8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.is-hidden td { opacity: .55; }
+.actions { white-space: nowrap; text-align: right; }
+.actions form { display: inline; margin-left: .6rem; }
+.title-cell a { font-weight: 600; }
+.note { display: block; margin-top: .25rem; font-style: italic; }
+.drop { color: var(--good); }
+
+.yield {
+  display: inline-block; min-width: 4.2rem; padding: .15rem .45rem; border-radius: 6px; text-align: center;
+  font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.yield-good { background: var(--good-bg); color: var(--good); }
+.yield-near { background: var(--near-bg); color: var(--near); }
+.yield-low, .yield-none { color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
+
+.badge { display: inline-block; padding: 0 .4rem; border-radius: 999px; font-size: .75rem; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); vertical-align: 1px; }
+.badge.new { background: var(--accent); color: var(--accent-text); box-shadow: none; }
+
+.empty { padding: 2rem 1rem; text-align: center; background: var(--surface); border-radius: var(--radius); box-shadow: inset 0 0 0 1px var(--line); }
+
+.calc { display: grid; gap: .5rem; margin: 0 0 1.5rem; padding: .8rem 1rem; background: var(--surface); border-radius: var(--radius); box-shadow: inset 0 0 0 1px var(--line); }
+.calc div { display: flex; gap: 1rem; flex-wrap: wrap; }
+.calc dt { min-width: 11rem; color: var(--muted); }
+.calc dd { margin: 0; font-weight: 600; }
+
+/* Inserate auf schmalen Bildschirmen als Karten */
+@media (max-width: 52rem) {
+  table.listings, table.listings tbody, table.listings tr, table.listings td { display: block; }
+  table.listings thead { display: none; }
+  table.listings { background: none; box-shadow: none; }
+  table.listings tr {
+    display: grid; grid-template-columns: auto 1fr; gap: .25rem .75rem;
+    margin-bottom: .75rem; padding: .75rem; background: var(--surface); border-radius: var(--radius); box-shadow: inset 0 0 0 1px var(--line);
+  }
+  table.listings td { padding: 0; border: 0; }
+  table.listings td[data-label="Rendite"] { grid-row: span 2; }
+  table.listings td.num { text-align: left; grid-column: 2; font-size: .9rem; }
+  table.listings td.num::before { content: attr(data-label) ": "; color: var(--muted); }
+  table.listings td.num .block { display: inline; margin-left: .3rem; }
+  table.listings td.actions { grid-column: 1 / -1; text-align: left; padding-top: .35rem; }
+  table.cities th:nth-child(2), table.cities td:nth-child(2) { display: none; }
+  table.log { font-size: .85rem; }
+}

@@ -1,0 +1,44 @@
+{{define "content"}}
+<h1>{{.Title}}</h1>
+{{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
+{{if not .New}}
+<p class="muted">
+  {{sourceLabel .L.Source}} · <a href="{{.L.URL}}" rel="noopener noreferrer" target="_blank">Exposé öffnen</a> ·
+  zuerst gesehen {{date .L.FirstSeen}}, zuletzt {{date .L.LastSeen}}{{if gt .L.FirstPrice .L.Price}} · Startpreis {{eur .L.FirstPrice}}{{end}}
+</p>
+{{with .Row}}
+<dl class="calc">
+  <div><dt>Bruttomietrendite</dt><dd>{{if .Yield}}{{num .Yield 2}} %{{else}}–{{end}}</dd></div>
+  <div><dt>Kaufpreisfaktor</dt><dd>{{if .Factor}}{{num .Factor 1}}{{else}}–{{end}}</dd></div>
+  <div><dt>Miete angesetzt</dt><dd>{{if .MonthlyRent}}{{num .MonthlyRent 0}} €/Monat ({{if isActual .RentSource}}Ist-Miete{{else}}{{num .Area 1}} m² × {{num .City.RentPerM2 2}} € Mietspiegel {{.City.Name}}{{end}}){{else}}keine – Stadt ohne Mietspiegel oder Fläche fehlt{{end}}</dd></div>
+</dl>
+{{end}}
+{{end}}
+
+<form method="post" action="{{if .New}}/inserate{{else}}/inserate/{{.L.ID}}{{end}}" class="stack">
+  {{if .New}}
+  <label>Link zum Inserat <input name="url" type="url" required value="{{.URL}}" placeholder="https://www.immobilienscout24.de/expose/…"></label>
+  {{end}}
+  <label>Titel <input name="title" value="{{.L.Title}}"></label>
+  <div class="grid2">
+    <label>PLZ <input name="postcode" inputmode="numeric" maxlength="5" value="{{.L.Postcode}}"></label>
+    <label>Ort / Adresse <input name="address" value="{{.L.Address}}"></label>
+  </div>
+  <div class="grid3">
+    <label>Kaufpreis (€) <input name="price" inputmode="decimal" value="{{inInt .L.Price}}"></label>
+    <label>Wohnfläche (m²) <input name="area" inputmode="decimal" value="{{in .L.Area}}"></label>
+    <label>Zimmer <input name="rooms" inputmode="decimal" value="{{in .L.Rooms}}"></label>
+  </div>
+  <label>Ist-Miete nettokalt (€/Monat) <input name="rent_actual" inputmode="decimal" value="{{inInt .L.RentActual}}" aria-describedby="rent-hint"></label>
+  <p id="rent-hint" class="muted small">Leer lassen, um den Mietspiegel der Stadt zu verwenden. Eine eingetragene Ist-Miete hat Vorrang.</p>
+  <label>Notiz <textarea name="note" rows="3">{{.L.Note}}</textarea></label>
+  <p><button>Speichern</button> <a href="/">Abbrechen</a></p>
+</form>
+
+{{if not .New}}
+<form method="post" action="/inserate/{{.L.ID}}/loeschen" class="danger-zone">
+  <button class="danger">Inserat löschen</button>
+  <span class="muted small">Taucht es in einer späteren Mail wieder auf, wird es neu angelegt. Zum dauerhaften Ausblenden lieber „Ausblenden“ nutzen.</span>
+</form>
+{{end}}
+{{end}}
