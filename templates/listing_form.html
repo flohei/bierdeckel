@@ -19,6 +19,10 @@
   {{if .New}}
   <label>Link zum Inserat <input name="url" type="url" required value="{{.URL}}" placeholder="https://www.immobilienscout24.de/expose/…"></label>
   {{end}}
+  {{if not .New}}
+  <label>Link zum Exposé <input name="url" type="url" value="{{.L.URL}}" aria-describedby="url-hint"></label>
+  <p id="url-hint" class="muted small">{{if isTracking .L.URL}}Das ist noch ein Weiterleitungs-Link aus der Mail. Du kannst hier die direkte Exposé-Adresse einfügen.{{else}}Direkter Link zum Inserat beim Anbieter.{{end}}</p>
+  {{end}}
   <label>Titel <input name="title" value="{{.L.Title}}"></label>
   <div class="grid2">
     <label>PLZ <input name="postcode" inputmode="numeric" maxlength="5" value="{{.L.Postcode}}"></label>

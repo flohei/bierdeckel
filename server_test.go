@@ -210,3 +210,26 @@ func TestCitySuggestionsFlow(t *testing.T) {
 		t.Error("Mietspiegel nicht übernommen")
 	}
 }
+
+func TestDashboardExposeLinkAndEditURL(t *testing.T) {
+	a, h := newTestApp(t)
+	a.store.UpsertListing(Listing{Source: "immowelt", ExternalID: "h-1", URL: "https://click.by.immowelt.de/?qs=abc", Title: "Wohnung A", Price: 100000, RentActual: 600})
+	body := do(h, "GET", "/", nil, nil).Body.String()
+	if !strings.Contains(body, `href="https://click.by.immowelt.de/?qs=abc"`) || !strings.Contains(body, "Exposé ↗") || !strings.Contains(body, "(Weiterleitung)") {
+		t.Fatalf("Exposé-Link fehlt:\n%s", body)
+	}
+	ls, _ := a.store.Listings()
+	id := itoa(ls[0].ID)
+	w := do(h, "POST", "/inserate/"+id, url.Values{"url": {"https://www.immowelt.de/expose/xyz99"}, "title": {"Wohnung A"}, "price": {"100000"}, "rent_actual": {"600"}}, nil)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("speichern: %d %s", w.Code, w.Body)
+	}
+	body = do(h, "GET", "/", nil, nil).Body.String()
+	if !strings.Contains(body, `href="https://www.immowelt.de/expose/xyz99"`) || strings.Contains(body, "(Weiterleitung)") {
+		t.Errorf("neuer Link nicht übernommen")
+	}
+	w = do(h, "POST", "/inserate/"+id, url.Values{"url": {"javascript:alert(1)"}, "price": {"1"}}, nil)
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("javascript-URL: %d", w.Code)
+	}
+}

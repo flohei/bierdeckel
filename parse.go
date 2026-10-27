@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -497,7 +498,7 @@ func parseCmd(path string) error {
 		return err
 	}
 	fmt.Printf("Betreff: %s\nVon:     %s\n\n", msg.Subject, msg.From)
-	ls := parseListings(msg)
+	ls := resolveLinks(context.Background(), parseListings(msg))
 	for i, l := range ls {
 		fmt.Printf("%2d. [%s %s]%s %s\n    %s | PLZ %s\n    Preis %d € · %.1f m² · %.1f Zi.",
 			i+1, l.Source, l.ExternalID, map[bool]string{true: " (Hash-ID)"}[l.Hashed], l.Title, l.Address, l.Postcode, l.Price, l.Area, l.Rooms)
@@ -515,17 +516,17 @@ func importFile(store *Store, path string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	n, _, err := importMessage(store, raw)
+	n, _, err := importMessage(context.Background(), store, raw)
 	return n, err
 }
 
 // importMessage speichert alle Inserate einer Mail. Rückgabe: Anzahl, davon neu.
-func importMessage(store *Store, raw []byte) (total, fresh int, err error) {
+func importMessage(ctx context.Context, store *Store, raw []byte) (total, fresh int, err error) {
 	msg, err := decodeMessage(raw)
 	if err != nil {
 		return 0, 0, err
 	}
-	for _, p := range parseListings(msg) {
+	for _, p := range resolveLinks(ctx, parseListings(msg)) {
 		isNew, err := store.UpsertListing(p.Listing)
 		if err != nil {
 			return total, fresh, err

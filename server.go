@@ -167,6 +167,10 @@ func (a *App) loadTemplates() error {
 		},
 		"isIndex":  func(s RentSource) bool { return s == RentIndex },
 		"isActual": func(s RentSource) bool { return s == RentActual },
+		"isTracking": func(u string) bool {
+			_, _, _, ok := exposeFromURL(u)
+			return u != "" && !ok
+		},
 	}
 	pages, err := fs.Glob(templateFS, "templates/*.html")
 	if err != nil {
@@ -509,6 +513,13 @@ func (a *App) listingUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	l := listingFromForm(r)
 	l.ID, l.Source, l.ExternalID, l.URL = old.ID, old.Source, old.ExternalID, old.URL
+	if raw := strings.TrimSpace(r.PostFormValue("url")); raw != "" && raw != old.URL {
+		if u, err := url.Parse(raw); err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
+			a.render(w, r, http.StatusUnprocessableEntity, "listing_form.html", map[string]any{"Title": "Inserat bearbeiten", "Nav": "dashboard", "L": l, "Error": "Bitte einen gültigen Link zum Exposé angeben."})
+			return
+		}
+		l.URL = raw
+	}
 	if msg := validateListing(l); msg != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "listing_form.html", map[string]any{"Title": "Inserat bearbeiten", "Nav": "dashboard", "L": l, "Error": msg})
 		return
