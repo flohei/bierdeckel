@@ -6,10 +6,12 @@ Kategorien: **Neu** · **Verbessert** · **Behoben** · **Intern**
 
 ## Unveröffentlicht
 
-## v0.1.5 – 27.10.2026
+## v0.1.6 – 27.10.2026
 
 ### Neu
 - Favoriten: Inserate per ☆ in der Übersicht oder auf der Detailseite merken, Filter „nur Favoriten“ (mit Anzahl). Favoriten bleiben sichtbar, auch wenn sie unter den Schwellwert fallen, und überstehen `bierdeckel reimport` (#4)
+
+## v0.1.5 – 27.10.2026
 
 ### Neu
 - „Exposé ↗“-Button in jeder Zeile der Übersicht (#3)
