@@ -29,6 +29,7 @@
     </select>
   </label>
   <fieldset class="checks">
+    <label><input type="checkbox" name="neu" value="1" {{if .Filter.Unread}}checked{{end}}> nur neue</label>
     <label><input type="checkbox" name="fav" value="1" {{if .Filter.Favorites}}checked{{end}}> nur Favoriten{{if .FavCount}} ({{.FavCount}}){{end}}</label>
     <label><input type="checkbox" name="alle" value="1" {{if .Filter.All}}checked{{end}}> auch darunter</label>
     <label><input type="checkbox" name="inaktive" value="1" {{if not .Filter.OnlyActive}}checked{{end}}> inaktive Städte</label>
@@ -36,6 +37,12 @@
   </fieldset>
   <button>Anzeigen</button>
 </form>
+{{if .UnreadVisible}}
+<form method="post" action="/gelesen" class="mark-read">
+  <input type="hidden" name="back" value="{{.Back}}">
+  <button class="button secondary small">Alle {{.UnreadVisible}} als gelesen markieren</button>
+</form>
+{{end}}
 <p id="min-hint" class="muted small">
   {{len .Rows}} von {{.TotalListings}} Inseraten.
   {{with .LastFetch}}Letzter Abruf {{since .Finished}}{{if .ErrText}} – <a href="/einstellungen">mit Fehler</a>{{end}}.{{end}}
@@ -58,7 +65,7 @@
   </thead>
   <tbody>
   {{range .Rows}}
-    <tr id="inserat-{{.ID}}" class="{{if .Hidden}}is-hidden{{end}}{{if .Favorite}} is-favorite{{end}}">
+    <tr id="inserat-{{.ID}}" class="{{if .Hidden}}is-hidden{{end}}{{if .Favorite}} is-favorite{{end}}{{if .New}} is-unread{{end}}">
       <td data-label="Rendite">
         <span class="yield {{yieldClass . $.Filter.Threshold}}">{{if .Yield}}{{num .Yield 1}} %{{else}}–{{end}}</span>
         {{if .Factor}}<span class="muted small block">Faktor {{num .Factor 1}}</span>{{end}}
@@ -68,7 +75,7 @@
           <input type="hidden" name="back" value="{{$.Back}}">
           <button class="fav" aria-pressed="{{if .Favorite}}true{{else}}false{{end}}" title="{{if .Favorite}}Aus Favoriten entfernen{{else}}Als Favorit merken{{end}}"><span aria-hidden="true">{{if .Favorite}}★{{else}}☆{{end}}</span><span class="visually-hidden">Favorit</span></button>
         </form>
-        {{if .URL}}<a href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{if .Title}}{{.Title}}{{else}}Exposé {{.ExternalID}}{{end}}</a>{{else}}<strong>{{if .Title}}{{.Title}}{{else}}Inserat {{.ExternalID}}{{end}}</strong>{{end}}
+        {{if .URL}}<a href="/inserate/{{.ID}}/expose" rel="noopener noreferrer" target="_blank">{{if .Title}}{{.Title}}{{else}}Exposé {{.ExternalID}}{{end}}</a>{{else}}<strong>{{if .Title}}{{.Title}}{{else}}Inserat {{.ExternalID}}{{end}}</strong>{{end}}
         {{if .New}}<span class="badge new">neu</span>{{end}}
         <span class="muted small block">
           {{if .City}}{{.City.Name}}{{else if .Address}}{{.Address}}{{else}}Ort unbekannt{{end}}{{if .Rooms}} · {{num .Rooms 1}} Zi.{{end}} · {{sourceLabel .Source}}{{if isTracking .URL}} (Weiterleitung){{end}} · {{since .FirstSeen}}
@@ -85,7 +92,7 @@
         {{else}}–{{end}}
       </td>
       <td class="actions">
-        {{if .URL}}<a class="button expose" href="{{.URL}}" rel="noopener noreferrer" target="_blank" title="{{if isTracking .URL}}Über Weiterleitung des Anbieters{{else}}Direkt zum Exposé{{end}}">Exposé ↗</a>{{end}}
+        {{if .URL}}<a class="button expose" href="/inserate/{{.ID}}/expose" rel="noopener noreferrer" target="_blank" title="{{if isTracking .URL}}Über Weiterleitung des Anbieters{{else}}Direkt zum Exposé{{end}}">Exposé ↗</a>{{end}}
         <a class="small" href="/inserate/{{.ID}}">Bearbeiten</a>
         <form method="post" action="/inserate/{{.ID}}/{{if .Hidden}}einblenden{{else}}ausblenden{{end}}">
           <input type="hidden" name="back" value="{{$.Back}}">
@@ -98,7 +105,10 @@
 </table>
 {{else}}
 <div class="empty">
-  {{if .Filter.Favorites}}
+  {{if .Filter.Unread}}
+  <p>Keine neuen Inserate – alles gelesen.</p>
+  <p><a href="/">Zur Übersicht</a></p>
+  {{else if .Filter.Favorites}}
   <p>Noch keine Favoriten. Mit ☆ in der Übersicht merkst du dir ein Inserat.</p>
   <p><a href="/">Zur Übersicht</a></p>
   {{else if .TotalListings}}

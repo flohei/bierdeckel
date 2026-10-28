@@ -214,19 +214,24 @@ func TestCitySuggestionsFlow(t *testing.T) {
 func TestDashboardExposeLinkAndEditURL(t *testing.T) {
 	a, h := newTestApp(t)
 	a.store.UpsertListing(Listing{Source: "immowelt", ExternalID: "h-1", URL: "https://click.by.immowelt.de/?qs=abc", Title: "Wohnung A", Price: 100000, RentActual: 600})
-	body := do(h, "GET", "/", nil, nil).Body.String()
-	if !strings.Contains(body, `href="https://click.by.immowelt.de/?qs=abc"`) || !strings.Contains(body, "Exposé ↗") || !strings.Contains(body, "(Weiterleitung)") {
-		t.Fatalf("Exposé-Link fehlt:\n%s", body)
-	}
 	ls, _ := a.store.Listings()
 	id := itoa(ls[0].ID)
+	body := do(h, "GET", "/", nil, nil).Body.String()
+	if !strings.Contains(body, `href="/inserate/`+id+`/expose"`) || !strings.Contains(body, "Exposé ↗") || !strings.Contains(body, "(Weiterleitung)") {
+		t.Fatalf("Exposé-Link fehlt:\n%s", body)
+	}
+	if loc := do(h, "GET", "/inserate/"+id+"/expose", nil, nil).Header().Get("Location"); loc != "https://click.by.immowelt.de/?qs=abc" {
+		t.Errorf("Weiterleitung: %q", loc)
+	}
 	w := do(h, "POST", "/inserate/"+id, url.Values{"url": {"https://www.immowelt.de/expose/xyz99"}, "title": {"Wohnung A"}, "price": {"100000"}, "rent_actual": {"600"}}, nil)
 	if w.Code != http.StatusSeeOther {
 		t.Fatalf("speichern: %d %s", w.Code, w.Body)
 	}
-	body = do(h, "GET", "/", nil, nil).Body.String()
-	if !strings.Contains(body, `href="https://www.immowelt.de/expose/xyz99"`) || strings.Contains(body, "(Weiterleitung)") {
-		t.Errorf("neuer Link nicht übernommen")
+	if loc := do(h, "GET", "/inserate/"+id+"/expose", nil, nil).Header().Get("Location"); loc != "https://www.immowelt.de/expose/xyz99" {
+		t.Errorf("neuer Link nicht übernommen: %q", loc)
+	}
+	if strings.Contains(do(h, "GET", "/", nil, nil).Body.String(), "(Weiterleitung)") {
+		t.Error("Markierung „Weiterleitung“ sollte weg sein")
 	}
 	w = do(h, "POST", "/inserate/"+id, url.Values{"url": {"javascript:alert(1)"}, "price": {"1"}}, nil)
 	if w.Code != http.StatusUnprocessableEntity {
@@ -282,3 +287,60 @@ func TestFavorites(t *testing.T) {
 }
 
 func atoi(s string) int64 { n, _ := strconv.ParseInt(s, 10, 64); return n }
+
+func TestReadUnread(t *testing.T) {
+	a, h := newTestApp(t)
+	for i, title := range []string{"Wohnung A", "Wohnung B", "Wohnung C"} {
+		a.store.UpsertListing(Listing{Source: "is24", ExternalID: itoa(int64(i + 1)), URL: "https://www.immobilienscout24.de/expose/" + itoa(int64(i+1)), Title: title, Price: 100000, RentActual: 600})
+	}
+	ids := map[string]string{}
+	ls, _ := a.store.Listings()
+	for _, l := range ls {
+		ids[l.Title] = itoa(l.ID)
+		if l.Read {
+			t.Fatalf("neu eingelesen sollte ungelesen sein: %+v", l)
+		}
+	}
+	body := do(h, "GET", "/", nil, nil).Body.String()
+	if strings.Count(body, ">neu</span>") != 3 || !strings.Contains(body, "Alle 3 als gelesen markieren") {
+		t.Fatalf("3 neue erwartet:\n%s", body)
+	}
+
+	// Exposé öffnen markiert als gelesen.
+	if w := do(h, "GET", "/inserate/"+ids["Wohnung A"]+"/expose", nil, nil); w.Code != http.StatusSeeOther {
+		t.Fatalf("expose: %d", w.Code)
+	}
+	// Detailseite öffnen ebenso.
+	do(h, "GET", "/inserate/"+ids["Wohnung B"], nil, nil)
+	body = do(h, "GET", "/?neu=1", nil, nil).Body.String()
+	if strings.Contains(body, "Wohnung A") || strings.Contains(body, "Wohnung B") || !strings.Contains(body, "Wohnung C") {
+		t.Errorf("nur neue:\n%s", body)
+	}
+
+	// Wieder als neu markieren.
+	do(h, "POST", "/inserate/"+ids["Wohnung A"]+"/ungelesen", url.Values{}, nil)
+	if !strings.Contains(do(h, "GET", "/?neu=1", nil, nil).Body.String(), "Wohnung A") {
+		t.Error("A sollte wieder neu sein")
+	}
+
+	// Alle in der Ansicht als gelesen; Rücksprung ohne „nur neue“.
+	w := do(h, "POST", "/gelesen", url.Values{"back": {"/?neu=1&sort=preis"}}, nil)
+	if loc := w.Header().Get("Location"); !strings.HasPrefix(loc, "/?sort=preis&ok=") {
+		t.Errorf("Rücksprung: %q", loc)
+	}
+	if body := do(h, "GET", "/?neu=1", nil, nil).Body.String(); !strings.Contains(body, "alles gelesen") {
+		t.Errorf("sollte leer sein:\n%s", body)
+	}
+
+	// Preissenkung macht ein Inserat wieder neu, Preiserhöhung nicht.
+	a.store.UpsertListing(Listing{Source: "is24", ExternalID: "2", Price: 120000})
+	a.store.UpsertListing(Listing{Source: "is24", ExternalID: "3", Price: 95000})
+	l2, _ := a.store.Listing(atoi(ids["Wohnung B"]))
+	l3, _ := a.store.Listing(atoi(ids["Wohnung C"]))
+	if !l2.Read || l3.Read {
+		t.Errorf("nach Preisänderung: B gelesen=%v, C gelesen=%v", l2.Read, l3.Read)
+	}
+	if do(h, "GET", "/inserate/999/expose", nil, nil).Code != http.StatusNotFound {
+		t.Error("404 erwartet")
+	}
+}

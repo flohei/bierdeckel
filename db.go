@@ -72,6 +72,12 @@ CREATE TABLE fetch_log (
 ALTER TABLE listings ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0;
 CREATE INDEX listings_favorite ON listings(favorite) WHERE favorite = 1;
 `,
+	`
+ALTER TABLE listings ADD COLUMN read_at INTEGER; -- NULL = ungelesen
+-- Bisheriges Verhalten übernehmen: was älter als 48 Stunden ist, gilt als gelesen.
+UPDATE listings SET read_at = first_seen WHERE first_seen < CAST(strftime('%s', 'now') AS INTEGER) - 172800;
+CREATE INDEX listings_unread ON listings(id) WHERE read_at IS NULL;
+`,
 }
 
 func openDB(path string) (*sql.DB, error) {
@@ -217,6 +223,7 @@ type Listing struct {
 	RentActual int64 // 0 = unbekannt
 	Hidden     bool
 	Favorite   bool
+	Read       bool
 	Note       string
 	FirstSeen  time.Time
 	LastSeen   time.Time
@@ -254,6 +261,7 @@ func (s *Store) UpsertListing(l Listing) (bool, error) {
 	}
 	_, err = tx.Exec(`UPDATE listings SET
 		last_seen   = ?,
+		read_at     = CASE WHEN ? > 0 AND ? < price THEN NULL ELSE read_at END,
 		price       = CASE WHEN ? > 0 THEN ? ELSE price END,
 		first_price = CASE WHEN first_price = 0 THEN ? ELSE first_price END,
 		url         = CASE WHEN url = '' OR (? LIKE '%/expose/%' AND url NOT LIKE '%/expose/%') THEN ? ELSE url END,
@@ -264,20 +272,20 @@ func (s *Store) UpsertListing(l Listing) (bool, error) {
 		rooms       = CASE WHEN rooms = 0 THEN ? ELSE rooms END,
 		rent_actual = COALESCE(?, rent_actual)
 		WHERE id = ?`,
-		now, l.Price, l.Price, l.Price, l.URL, l.URL, l.Title, l.Title, l.Address, l.Postcode, l.Area, l.Rooms, rent, id)
+		now, l.Price, l.Price, l.Price, l.Price, l.Price, l.URL, l.URL, l.Title, l.Title, l.Address, l.Postcode, l.Area, l.Rooms, rent, id)
 	if err != nil {
 		return false, err
 	}
 	return false, tx.Commit()
 }
 
-const listingCols = `id, source, external_id, url, title, address, postcode, price, first_price, area, rooms, COALESCE(rent_actual, 0), hidden, favorite, note, first_seen, last_seen`
+const listingCols = `id, source, external_id, url, title, address, postcode, price, first_price, area, rooms, COALESCE(rent_actual, 0), hidden, favorite, read_at IS NOT NULL, note, first_seen, last_seen`
 
 func scanListing(sc interface{ Scan(...any) error }) (Listing, error) {
 	var l Listing
 	var first, last int64
 	err := sc.Scan(&l.ID, &l.Source, &l.ExternalID, &l.URL, &l.Title, &l.Address, &l.Postcode, &l.Price, &l.FirstPrice,
-		&l.Area, &l.Rooms, &l.RentActual, &l.Hidden, &l.Favorite, &l.Note, &first, &last)
+		&l.Area, &l.Rooms, &l.RentActual, &l.Hidden, &l.Favorite, &l.Read, &l.Note, &first, &last)
 	l.FirstSeen, l.LastSeen = time.Unix(first, 0), time.Unix(last, 0)
 	return l, err
 }
@@ -301,6 +309,37 @@ func (s *Store) Listings() ([]Listing, error) {
 
 func (s *Store) Listing(id int64) (Listing, error) {
 	return scanListing(s.db.QueryRow(`SELECT `+listingCols+` FROM listings WHERE id = ?`, id))
+}
+
+// SetRead markiert ein Inserat als gelesen oder wieder als neu.
+func (s *Store) SetRead(id int64, read bool) error {
+	var err error
+	if read {
+		_, err = s.db.Exec(`UPDATE listings SET read_at = ? WHERE id = ? AND read_at IS NULL`, s.clock().Unix(), id)
+	} else {
+		_, err = s.db.Exec(`UPDATE listings SET read_at = NULL WHERE id = ?`, id)
+	}
+	return err
+}
+
+// MarkAllRead markiert die angegebenen Inserate als gelesen (nur, was gerade angezeigt wird).
+func (s *Store) MarkAllRead(ids []int64) (int64, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	var n int64
+	now := s.clock().Unix()
+	for _, id := range ids {
+		res, err := tx.Exec(`UPDATE listings SET read_at = ? WHERE id = ? AND read_at IS NULL`, now, id)
+		if err != nil {
+			return 0, err
+		}
+		c, _ := res.RowsAffected()
+		n += c
+	}
+	return n, tx.Commit()
 }
 
 func (s *Store) SetFavorite(id int64, fav bool) error {

@@ -129,6 +129,10 @@ tr.is-hidden td { opacity: .55; }
 .title-cell a { font-weight: 600; }
 .note { display: block; margin-top: .25rem; font-style: italic; }
 .drop { color: var(--good); }
+tr.is-unread .title-cell > a { font-weight: 700; }
+tr:not(.is-unread) .title-cell > a { font-weight: 500; }
+.mark-read { float: right; margin: .5rem 0 0 1rem; }
+.mark-read .button { padding: .3rem .7rem; font-size: .85rem; font-weight: 500; }
 .fav-form { display: inline; }
 button.fav {
   background: none; padding: 0 .3rem 0 0; font-size: 1.25rem; line-height: 1; font-weight: 400;

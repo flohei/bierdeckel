@@ -118,3 +118,33 @@ func TestResetImportedKeepsFavorites(t *testing.T) {
 		t.Errorf("Favorit nicht erhalten: %+v", ls)
 	}
 }
+
+func TestMigrationMarksOldListingsRead(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "alt.db")
+	db, err := openDB(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Stand vor Migration 3 simulieren.
+	for _, q := range []string{`DROP INDEX listings_unread`, `ALTER TABLE listings DROP COLUMN read_at`} {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db.Exec(`PRAGMA user_version = 2`)
+	now := time.Now().Unix()
+	db.Exec(`INSERT INTO listings (source, external_id, url, first_seen, last_seen) VALUES ('is24','alt','',?,?), ('is24','frisch','',?,?)`, now-5*86400, now, now-3600, now)
+	if err := migrate(db); err != nil {
+		t.Fatal(err)
+	}
+	s := &Store{db: db}
+	ls, _ := s.Listings()
+	read := map[string]bool{}
+	for _, l := range ls {
+		read[l.ExternalID] = l.Read
+	}
+	if !read["alt"] || read["frisch"] {
+		t.Errorf("%v", read)
+	}
+	db.Close()
+}
