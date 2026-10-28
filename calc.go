@@ -49,7 +49,7 @@ func evaluate(l Listing, cities []City, now time.Time) Row {
 		r.MonthlyRent, r.RentSource = l.Area*r.City.RentPerM2, RentIndex
 	}
 	r.Yield, r.Factor = grossYield(l.Price, r.MonthlyRent)
-	r.New = now.Sub(l.FirstSeen) < 48*time.Hour
+	r.New = !l.Read
 	return r
 }
 
@@ -111,6 +111,7 @@ type Filter struct {
 	ShowHidden bool
 	OnlyActive bool  // Inserate aus inaktiven Städten ausblenden
 	CityID     int64 // 0 = alle
+	Unread     bool  // nur ungelesene
 	Favorites  bool  // nur Favoriten (unabhängig von Schwellwert, Ausblenden und inaktiven Städten)
 	Sort       string
 }
@@ -126,6 +127,9 @@ func buildRows(listings []Listing, cities []City, f Filter, now time.Time) []Row
 	var rows []Row
 	for _, l := range listings {
 		if f.Favorites && !l.Favorite {
+			continue
+		}
+		if f.Unread && l.Read {
 			continue
 		}
 		if l.Hidden && !f.ShowHidden && !f.Favorites {

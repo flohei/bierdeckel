@@ -6,8 +6,11 @@
   <input type="hidden" name="back" value="edit">
   <button class="fav fav-labeled" aria-pressed="{{if .L.Favorite}}true{{else}}false{{end}}"><span aria-hidden="true">{{if .L.Favorite}}★{{else}}☆{{end}}</span> {{if .L.Favorite}}Favorit{{else}}Als Favorit merken{{end}}</button>
 </form>
+<form method="post" action="/inserate/{{.L.ID}}/ungelesen" class="fav-form">
+  <button class="link small">Als neu markieren</button>
+</form>
 <p class="muted">
-  {{sourceLabel .L.Source}} · <a href="{{.L.URL}}" rel="noopener noreferrer" target="_blank">Exposé öffnen</a> ·
+  {{sourceLabel .L.Source}} · <a href="/inserate/{{.L.ID}}/expose" rel="noopener noreferrer" target="_blank">Exposé öffnen</a> ·
   zuerst gesehen {{date .L.FirstSeen}}, zuletzt {{date .L.LastSeen}}{{if gt .L.FirstPrice .L.Price}} · Startpreis {{eur .L.FirstPrice}}{{end}}
 </p>
 {{with .Row}}

@@ -262,6 +262,9 @@ func (a *App) routes() http.Handler {
 	app.HandleFunc("POST /inserate/{id}/ausblenden", a.listingHide(true))
 	app.HandleFunc("POST /inserate/{id}/einblenden", a.listingHide(false))
 	app.HandleFunc("POST /inserate/{id}/loeschen", a.listingDelete)
+	app.HandleFunc("GET /inserate/{id}/expose", a.listingOpen)
+	app.HandleFunc("POST /inserate/{id}/ungelesen", a.listingUnread)
+	app.HandleFunc("POST /gelesen", a.markAllRead)
 	app.HandleFunc("POST /inserate/{id}/favorit", a.listingFavorite(true))
 	app.HandleFunc("POST /inserate/{id}/kein-favorit", a.listingFavorite(false))
 	app.HandleFunc("GET /staedte", a.citiesPage)
@@ -335,16 +338,16 @@ func pathID(r *http.Request) int64 { return atoiDefault(r.PathValue("id"), 0) }
 
 // ---- Dashboard ----
 
-func (a *App) dashboard(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
-	saved := a.store.Threshold()
+// filterFromQuery liest die Dashboard-Filter aus der URL.
+func filterFromQuery(q url.Values, threshold float64) Filter {
 	f := Filter{
-		Threshold:  saved,
+		Threshold:  threshold,
 		All:        q.Get("alle") == "1",
 		ShowHidden: q.Get("ausgeblendet") == "1",
 		OnlyActive: q.Get("inaktive") != "1",
 		CityID:     atoiDefault(q.Get("stadt"), 0),
 		Favorites:  q.Get("fav") == "1",
+		Unread:     q.Get("neu") == "1",
 		Sort:       q.Get("sort"),
 	}
 	if v := parseGermanFloat(q.Get("min")); v > 0 {
@@ -353,6 +356,12 @@ func (a *App) dashboard(w http.ResponseWriter, r *http.Request) {
 	if _, ok := sortKeys[f.Sort]; !ok {
 		f.Sort = "rendite"
 	}
+	return f
+}
+
+func (a *App) dashboard(w http.ResponseWriter, r *http.Request) {
+	saved := a.store.Threshold()
+	f := filterFromQuery(r.URL.Query(), saved)
 	listings, err := a.store.Listings()
 	if err != nil {
 		a.serverError(w, r, err)
@@ -384,8 +393,15 @@ func (a *App) dashboard(w http.ResponseWriter, r *http.Request) {
 			favCount++
 		}
 	}
+	unreadVisible := 0
+	for _, row := range rows {
+		if row.New {
+			unreadVisible++
+		}
+	}
 	data := map[string]any{
 		"FavCount":       favCount,
+		"UnreadVisible":  unreadVisible,
 		"Back":           safeBack("/?" + r.URL.RawQuery),
 		"Title":          "Inserate",
 		"Nav":            "dashboard",
@@ -508,6 +524,13 @@ func (a *App) listingEditForm(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
+	if !l.Read {
+		if err := a.store.SetRead(l.ID, true); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		l.Read = true
+	}
 	cities, _ := a.store.Cities()
 	row := evaluate(l, cities, a.now())
 	a.render(w, r, http.StatusOK, "listing_form.html", map[string]any{"Title": "Inserat bearbeiten", "Nav": "dashboard", "L": l, "Row": row})
@@ -555,6 +578,75 @@ func (a *App) listingHide(hide bool) http.HandlerFunc {
 		}
 		redirect(w, r, back, msg)
 	}
+}
+
+// listingOpen markiert das Inserat als gelesen und leitet zum Exposé beim Anbieter weiter.
+// Ziel ist immer die gespeicherte URL (kein offener Redirect).
+func (a *App) listingOpen(w http.ResponseWriter, r *http.Request) {
+	l, err := a.store.Listing(pathID(r))
+	if errors.Is(err, sql.ErrNoRows) {
+		a.fail(w, r, http.StatusNotFound, "Inserat nicht gefunden.")
+		return
+	} else if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if err := a.store.SetRead(l.ID, true); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	u, err := url.Parse(l.URL)
+	if l.URL == "" || err != nil || (u.Scheme != "https" && u.Scheme != "http") {
+		http.Redirect(w, r, "/inserate/"+strconv.FormatInt(l.ID, 10), http.StatusSeeOther)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	http.Redirect(w, r, l.URL, http.StatusSeeOther)
+}
+
+func (a *App) listingUnread(w http.ResponseWriter, r *http.Request) {
+	id := pathID(r)
+	if err := a.store.SetRead(id, false); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	redirect(w, r, "/", "Als neu markiert.")
+}
+
+// markAllRead markiert alle Inserate als gelesen, die in der aktuellen Ansicht stehen.
+func (a *App) markAllRead(w http.ResponseWriter, r *http.Request) {
+	back := safeBack(r.PostFormValue("back"))
+	u, _ := url.Parse(back)
+	f := filterFromQuery(u.Query(), a.store.Threshold())
+	listings, err := a.store.Listings()
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	cities, err := a.store.Cities()
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	var ids []int64
+	for _, row := range buildRows(listings, cities, f, a.now()) {
+		if row.New {
+			ids = append(ids, row.ID)
+		}
+	}
+	n, err := a.store.MarkAllRead(ids)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	// „nur neue“ würde jetzt leer sein – zurück zur Ansicht ohne diesen Filter.
+	q := u.Query()
+	q.Del("neu")
+	back = "/"
+	if enc := q.Encode(); enc != "" {
+		back = "/?" + enc
+	}
+	redirect(w, r, back, fmt.Sprintf("%d Inserate als gelesen markiert.", n))
 }
 
 func (a *App) listingFavorite(fav bool) http.HandlerFunc {
