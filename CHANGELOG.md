@@ -6,6 +6,8 @@ Kategorien: **Neu** · **Verbessert** · **Behoben** · **Intern**
 
 ## Unveröffentlicht
 
+## v0.1.7 – 28.10.2026
+
 ### Verbessert
 - „Neu“ funktioniert jetzt wie in einem Postfach: Inserate bleiben neu, bis du das Exposé oder die Detailseite öffnest – statt nach 48 Stunden automatisch zu verfallen. Bestehende Inserate älter als 48 Stunden gelten als gelesen (#6)
 
